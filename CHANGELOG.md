@@ -3,6 +3,12 @@
 All notable changes to this project are documented here. Versions are bumped
 together across all four ports and releases are tagged `vX.Y.Z`.
 
+## 0.1.0-rc.2 — 2026-09-10
+
+Android artifacts move to the Maven group `io.github.pythonshe` (the Kotlin
+package stays `io.smoothreading`). No algorithm or API changes; npm and PyPI
+are republished under the new version for consistency.
+
 ## 0.1.0-rc.1 — 2026-09-10
 
 Release candidate: the first published build of every port, for integration
@@ -25,7 +31,7 @@ output across all of them.
   SwiftUI, `html()` and `tokenize()`. ICU word breaking via
   `enumerateSubstrings(.byWords)` and `CFStringTokenizer` for a locale.
   Resolvable from the repository root via SwiftPM.
-- `io.smoothreading:smooth-reading` (Kotlin, minSdk 24): pure-JVM
+- `io.github.pythonshe:smooth-reading` (Kotlin, minSdk 24): pure-JVM
   `smooth-reading-core` plus `spanned()` for `TextView` and
   `annotatedString()` for Compose, ICU `BreakIterator` word breaking.
 - `smooth-reading` (Python 3.10+, PyPI): `tokenize`, `to_html`, `to_markdown`

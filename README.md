@@ -14,7 +14,7 @@ The technique is similar to commercial fixation-reading products, but this proje
 | --- | --- | --- | --- |
 | [`@smooth-reading/core`](packages/core) | npm | Web, Node.js, React Native, Deno, Bun | Zero-dependency tokenizer, HTML transformer, DOM applier, streaming transform. |
 | [`SmoothReading`](swift) | Swift Package Manager | iOS 15+, macOS 12+, watchOS 8+, tvOS 15+, visionOS 1+ | Native Swift 6 library. `NSAttributedString` for UIKit/AppKit, `AttributedString` for SwiftUI. |
-| [`io.smoothreading:smooth-reading`](android) | Maven Central | Android (minSdk 24), JVM | `AnnotatedString` for Jetpack Compose, `Spanned` for Android Views, pure JVM core. |
+| [`io.github.pythonshe:smooth-reading`](android) | Maven Central | Android (minSdk 24), JVM | `AnnotatedString` for Jetpack Compose, `Spanned` for Android Views, pure JVM core. |
 | [`smooth-reading`](python) | PyPI | Python 3.10+ | Zero-dependency Python library, type-annotated, with a built-in CLI. |
 
 ---

@@ -85,6 +85,11 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: "true"
         run: |
+          set -eu
+          version="${{ needs.verify.outputs.version }}"
+          if npm view "@smooth-reading/core@$version" version >/dev/null 2>&1; then
+            echo "@smooth-reading/core@$version is already on npm, skipping"; exit 0
+          fi
           tag=latest
           [ "${{ needs.verify.outputs.prerelease }}" = "true" ] && tag=next
           pnpm publish --access public --no-git-checks --tag "$tag"
@@ -115,9 +120,10 @@ jobs:
         with:
           packages-dir: python/dist
           print-hash: true
+          skip-existing: true
 
   maven-central:
-    name: Maven Central (io.smoothreading)
+    name: Maven Central (io.github.pythonshe)
     needs: verify
     runs-on: ubuntu-latest
     env:

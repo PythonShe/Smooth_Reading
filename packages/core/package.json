@@ -1,6 +1,6 @@
 {
   "name": "@smooth-reading/core",
-  "version": "0.1.0-rc.1",
+  "version": "0.1.0-rc.2",
   "description": "Zero-dependency guided fixation reading: emphasise the first part of every word so the eye gets an artificial fixation point. Unicode-aware, streaming, ESM + CJS.",
   "license": "Apache-2.0",
   "type": "module",

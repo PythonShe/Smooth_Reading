@@ -162,7 +162,7 @@ Consumers may configure `tag: "span"` and `className: "sr-fixation"` to style fi
 | --- | --- | --- |
 | `@smooth-reading/core` (npm) | Web, Node, Bun, Deno, React Native | `tokenize`, `toHtml`, `applyToElement`, `createTransformStream`, `styles.css` |
 | `SmoothReading` (SwiftPM) | iOS 15+, macOS 12+, watchOS 8+, tvOS 15+, visionOS 1+ | `tokenize`, `nsAttributedString`, `attributedString`, `html` |
-| `io.smoothreading` (Maven Central) | Android (minSdk 24+), JVM | `tokenize`, `annotatedString`, `spanned`, `toHtml` |
+| `io.github.pythonshe` (Maven Central) | Android (minSdk 24+), JVM | `tokenize`, `annotatedString`, `spanned`, `toHtml` |
 | `smooth-reading` (PyPI) | Python 3.10+ | `tokenize`, `to_html`, `to_markdown`, CLI |
 
 All ports pass `fixtures/common/*`. Ports with access to platform ICU word breaking also pass `fixtures/segmenter/*`.

@@ -9,7 +9,7 @@ one first-party port per platform runtime. License: Apache-2.0.
 |------|------|--------|------|
 | `packages/core/` | `@smooth-reading/core` | TypeScript, zero runtime deps | Tokenizer (`Intl.Segmenter` + regex fallback), `toHtml`, `applyToElement`, streaming transform, `styles.css` |
 | `swift/` | `SmoothReading` (SPM) | Swift 6, iOS 17+/macOS 14+ | Same algorithm; `NSAttributedString` + `UILabel`/`NSTextField` helpers for UIKit/AppKit (primary), `AttributedString` for SwiftUI, `html()` |
-| `android/` | `io.smoothreading:smooth-reading` | Kotlin, Gradle, minSdk 26 | Same algorithm; Compose `AnnotatedString`, `Spanned`, `toHtml()` |
+| `android/` | `io.github.pythonshe:smooth-reading` | Kotlin, Gradle, minSdk 24 | Same algorithm; Compose `AnnotatedString`, `Spanned`, `toHtml()` |
 | `python/` | `smooth-reading` (PyPI) | Python 3.10+, zero deps | Same algorithm, regex tokenizer, `smooth-reading` CLI |
 | `fixtures/` | shared fixtures | JSON | `common/` must pass in every port; `segmenter/` only where an ICU word-breaker exists |
 | `examples/` | demos | Vite | Playground apps, not published |

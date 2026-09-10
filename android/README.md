@@ -8,8 +8,8 @@ Two distinct artifacts are published:
 
 | Artifact | Target | Description |
 | --- | --- | --- |
-| `io.smoothreading:smooth-reading` | Android (minSdk 24+) | Full Android library: `spanned()` and `setSmoothText()` for `TextView`, `annotatedString()` for Jetpack Compose, and `IcuWordSegmenter` for dictionary word breaking. |
-| `io.smoothreading:smooth-reading-core` | Any JVM target | Pure Kotlin/JVM, zero dependencies: `tokenize()`, `toHtml()`, `fixationLength()`, and `SpecWordSegmenter`. Ideal for server-side rendering, desktop, and backend pipelines. |
+| `io.github.pythonshe:smooth-reading` | Android (minSdk 24+) | Full Android library: `spanned()` and `setSmoothText()` for `TextView`, `annotatedString()` for Jetpack Compose, and `IcuWordSegmenter` for dictionary word breaking. |
+| `io.github.pythonshe:smooth-reading-core` | Any JVM target | Pure Kotlin/JVM, zero dependencies: `tokenize()`, `toHtml()`, `fixationLength()`, and `SpecWordSegmenter`. Ideal for server-side rendering, desktop, and backend pipelines. |
 
 Every code snippet below is verified by unit tests in `ReadmeSnippetsTest`.
 
@@ -20,18 +20,18 @@ Every code snippet below is verified by unit tests in `ReadmeSnippetsTest`.
 ```kotlin
 // build.gradle.kts — Android app or library
 dependencies {
-    implementation("io.smoothreading:smooth-reading:0.1.0-rc.1")
+    implementation("io.github.pythonshe:smooth-reading:0.1.0-rc.2")
 }
 
 // build.gradle.kts — Plain Kotlin/JVM project (SSR, desktop, CLI)
 dependencies {
-    implementation("io.smoothreading:smooth-reading-core:0.1.0-rc.1")
+    implementation("io.github.pythonshe:smooth-reading-core:0.1.0-rc.2")
 }
 ```
 
 ### Lightweight Compose integration
 
-The Android artifact includes `io.smoothreading:smooth-reading-core` transitively. Its only other dependency, `androidx.compose.ui:ui-text` (for `AnnotatedString` and `SpanStyle`), is declared **`compileOnly`**:
+The Android artifact includes `io.github.pythonshe:smooth-reading-core` transitively. The Maven group is `io.github.pythonshe`; the Kotlin package stays `io.smoothreading`. Its only other dependency, `androidx.compose.ui:ui-text` (for `AnnotatedString` and `SpanStyle`), is declared **`compileOnly`**:
 
 - **View-only applications** incur no Compose runtime overhead in their APK. The Compose adapter class (`SmoothReadingCompose`) is only loaded when `annotatedString()` is invoked, and consumer ProGuard rules include `-dontwarn androidx.compose.ui.**`.
 - **Jetpack Compose applications** already have `ui-text` provided transitively via `androidx.compose.ui:ui`. The library requires no Compose compiler plugin and adds minimal method count.

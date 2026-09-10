@@ -16,7 +16,7 @@ The core fixation algorithm ([docs/SPEC.md](SPEC.md)) is intentionally script-ag
 | --- | --- | --- |
 | `@smooth-reading/core` (JS/TS) | `Intl.Segmenter(locale, { granularity: "word" })` backed by runtime ICU; spec-compliant regular expression fallback when unavailable. | `Intl.Segmenter(…, { granularity: "grapheme" })`; spec UAX #29 approximation fallback. |
 | `SmoothReading` (Swift) | ICU via `String.enumerateSubstrings(.byWords)`, or `CFStringTokenizer` when a custom `locale` is provided. | Swift standard library `Character` (native UAX #29 extended grapheme clusters). |
-| `io.smoothreading` (Android/JVM) | Android: `android.icu.text.BreakIterator` (`IcuWordSegmenter`).<br>Plain JVM: `SpecWordSegmenter` (spec-compliant scanner). | `BreakIterator.getCharacterInstance()` with post-pass for Hangul jamo composition and Indic conjunct linking (Unicode 15.1 GB9c). |
+| `io.github.pythonshe` (Android/JVM) | Android: `android.icu.text.BreakIterator` (`IcuWordSegmenter`).<br>Plain JVM: `SpecWordSegmenter` (spec-compliant scanner). | `BreakIterator.getCharacterInstance()` with post-pass for Hangul jamo composition and Indic conjunct linking (Unicode 15.1 GB9c). |
 | `smooth-reading` (Python) | High-performance scanner over `unicodedata.category` implementing spec rules; run rule for CJK/Thai. | Spec-compliant UAX #29 approximation (`smooth_reading.graphemes`). |
 
 **ICU dictionary breaking** — finding true lexical word boundaries in scripts without spaces (Chinese, Japanese, Thai, Lao, Khmer, Burmese) — is provided in the ICU-backed ports: `@smooth-reading/core` (via `Intl.Segmenter`), Swift, and Android (`IcuWordSegmenter`). 

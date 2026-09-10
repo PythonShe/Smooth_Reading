@@ -7,6 +7,6 @@ plugins {
 }
 
 allprojects {
-    group = "io.smoothreading"
-    version = "0.1.0-rc.1"
+    group = "io.github.pythonshe"
+    version = "0.1.0-rc.2"
 }
