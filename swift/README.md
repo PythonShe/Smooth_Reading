@@ -6,7 +6,7 @@ Similar to commercial fixation-reading products, this package is an independent,
 
 - **Zero third-party dependencies**: Built exclusively on Foundation (ICU word breaking, `AttributedString`, `FontDescriptor`).
 - **Swift 6 & Strict Concurrency**: All public types conform to `Sendable`.
-- **Broad platform support**: iOS 17+, macOS 14+, watchOS 10+, tvOS 17+, and visionOS 1+.
+- **Broad platform support**: iOS 15+, macOS 12+, watchOS 8+, tvOS 15+, and visionOS 1+ (the `AttributedString` floor; the UIKit/AppKit API itself needs nothing newer).
 - **UIKit & AppKit first**: `NSAttributedString` using real bold font descriptors is the primary API; `AttributedString` for SwiftUI is a first-class convenience built on the same token walk.
 
 Every code snippet below is verified by `Tests/SmoothReadingTests/ReadmeSnippetTests.swift`.

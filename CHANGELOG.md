@@ -15,13 +15,13 @@ output across all of them.
   `applyToElement` with restore, `createTransformStream`, `fixationLength`,
   `defaults`, `defaultSkipTags` and `styles.css`. Word breaking uses
   `Intl.Segmenter` when available and the spec regex otherwise.
-- `SmoothReading` (Swift Package, iOS 17+/macOS 14+/watchOS 10+/tvOS 17+/
+- `SmoothReading` (Swift Package, iOS 15+/macOS 12+/watchOS 8+/tvOS 15+/
   visionOS 1+): `NSAttributedString` with real bold fonts plus `UILabel`,
   `UITextView`, `NSTextField` and `NSTextView` helpers, `AttributedString` for
   SwiftUI, `html()` and `tokenize()`. ICU word breaking via
   `enumerateSubstrings(.byWords)` and `CFStringTokenizer` for a locale.
   Resolvable from the repository root via SwiftPM.
-- `io.smoothreading:smooth-reading` (Kotlin, minSdk 26): pure-JVM
+- `io.smoothreading:smooth-reading` (Kotlin, minSdk 24): pure-JVM
   `smooth-reading-core` plus `spanned()` for `TextView` and
   `annotatedString()` for Compose, ICU `BreakIterator` word breaking.
 - `smooth-reading` (Python 3.10+, PyPI): `tokenize`, `to_html`, `to_markdown`

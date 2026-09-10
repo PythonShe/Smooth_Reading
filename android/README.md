@@ -8,7 +8,7 @@ Two distinct artifacts are published:
 
 | Artifact | Target | Description |
 | --- | --- | --- |
-| `io.smoothreading:smooth-reading` | Android (minSdk 26+) | Full Android library: `spanned()` and `setSmoothText()` for `TextView`, `annotatedString()` for Jetpack Compose, and `IcuWordSegmenter` for dictionary word breaking. |
+| `io.smoothreading:smooth-reading` | Android (minSdk 24+) | Full Android library: `spanned()` and `setSmoothText()` for `TextView`, `annotatedString()` for Jetpack Compose, and `IcuWordSegmenter` for dictionary word breaking. |
 | `io.smoothreading:smooth-reading-core` | Any JVM target | Pure Kotlin/JVM, zero dependencies: `tokenize()`, `toHtml()`, `fixationLength()`, and `SpecWordSegmenter`. Ideal for server-side rendering, desktop, and backend pipelines. |
 
 Every code snippet below is verified by unit tests in `ReadmeSnippetsTest`.
@@ -194,7 +194,7 @@ SmoothReading.spanned("我喜欢阅读", SmoothOptions(), segmenter = SpecWordSe
 
 ## Build requirements
 
-- **Android SDK**: `minSdk` 26, `compileSdk` 37
+- **Android SDK**: `minSdk` 24 (the `android.icu.text.BreakIterator` floor), `compileSdk` 37
 - **Bytecode target**: Java 11 bytecode compiled with a JDK 21 toolchain
 - **Build toolchain**: Gradle 9.7.1, Android Gradle Plugin 9.4.0, Kotlin 2.4.20
 
