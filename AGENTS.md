@@ -18,7 +18,8 @@ one first-party port per platform runtime. License: Apache-2.0.
 Support policy: first-party ports are exactly the four above, one per
 platform runtime. Framework adapters (React, Vue, Svelte, Angular, …) are
 never published as packages; they are copy-paste recipes in `docs/recipes/`.
-Community forks are welcome to publish their own.
+Community forks are welcome to publish their own. **External pull requests
+are not accepted for now**; `CONTRIBUTING.md` and the PR template say so.
 
 Algorithm boundary: `docs/SPEC.md` owns the rules (fixation ratio table,
 round-half-up, saccade counting, tokenizer, HTML escaping). Code follows the
@@ -150,8 +151,9 @@ Cross-package changes may combine scopes (`spec,core,python`).
   `node_modules/`, `python/.venv/`, `__pycache__/`, `*.egg-info/`,
   `swift/.build/`, `android/build/`, `android/.gradle/`.
 - `docs/internal/` is gitignored on purpose; do not force-add it.
-- No personal information (names, emails) in README or other public-facing
-  docs. Copyright holder is "Smooth Reading contributors".
+- No personal information (real names, emails) in README or other
+  public-facing docs. The copyright holder in every LICENSE file and package
+  author field is the owner's GitHub handle, `PythonShe`.
 
 ## Machine/Toolchain Gotchas (this dev machine)
 
