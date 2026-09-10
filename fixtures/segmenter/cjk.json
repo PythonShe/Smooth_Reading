@@ -1,0 +1,44 @@
+[
+  {
+    "name": "Chinese: dictionary word breaks (zh)",
+    "input": "我喜欢阅读",
+    "options": { "fixation": 3, "locale": "zh" },
+    "html": "<b>我</b><b>喜</b>欢<b>阅</b>读"
+  },
+  {
+    "name": "Chinese with full-width punctuation",
+    "input": "我喜欢阅读。",
+    "options": { "fixation": 3, "locale": "zh" },
+    "html": "<b>我</b><b>喜</b>欢<b>阅</b>读。"
+  },
+  {
+    "name": "Chinese at fixation 5 emphasises the whole two-character word",
+    "input": "我喜欢阅读",
+    "options": { "fixation": 5, "locale": "zh" },
+    "html": "<b>我</b><b>喜欢</b><b>阅读</b>"
+  },
+  {
+    "name": "Chinese at fixation 2: single-character words get no fixation",
+    "input": "我喜欢阅读",
+    "options": { "fixation": 2, "locale": "zh" },
+    "html": "我<b>喜</b>欢<b>阅</b>读"
+  },
+  {
+    "name": "Japanese: particles are separate word-like segments (ja)",
+    "input": "私は本を読みます",
+    "options": { "fixation": 3, "locale": "ja" },
+    "html": "<b>私</b><b>は</b><b>本</b><b>を</b><b>読</b>み<b>ま</b>す"
+  },
+  {
+    "name": "Thai: no spaces, combining vowels stay with their base grapheme",
+    "input": "สวัสดีครับ",
+    "options": { "fixation": 3, "locale": "th" },
+    "html": "<b>สวั</b>สดี<b>ครั</b>บ"
+  },
+  {
+    "name": "mixed Chinese and Latin",
+    "input": "我喜欢 reading",
+    "options": { "fixation": 3, "locale": "zh" },
+    "html": "<b>我</b><b>喜</b>欢 <b>read</b>ing"
+  }
+]

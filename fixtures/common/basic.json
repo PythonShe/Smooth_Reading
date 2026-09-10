@@ -1,0 +1,50 @@
+[
+  {
+    "name": "default options (fixation 3, saccade 1)",
+    "input": "Smooth reading works.",
+    "options": {},
+    "html": "<b>Smo</b>oth <b>read</b>ing <b>wor</b>ks."
+  },
+  {
+    "name": "fixation 1 (ratio 0.20)",
+    "input": "Smooth reading works.",
+    "options": { "fixation": 1 },
+    "html": "<b>S</b>mooth <b>r</b>eading <b>w</b>orks."
+  },
+  {
+    "name": "fixation 2 (ratio 0.35)",
+    "input": "Smooth reading works.",
+    "options": { "fixation": 2 },
+    "html": "<b>Sm</b>ooth <b>re</b>ading <b>wo</b>rks."
+  },
+  {
+    "name": "fixation 3 (ratio 0.50)",
+    "input": "Smooth reading works.",
+    "options": { "fixation": 3 },
+    "html": "<b>Smo</b>oth <b>read</b>ing <b>wor</b>ks."
+  },
+  {
+    "name": "fixation 4 (ratio 0.65)",
+    "input": "Smooth reading works.",
+    "options": { "fixation": 4 },
+    "html": "<b>Smoo</b>th <b>readi</b>ng <b>wor</b>ks."
+  },
+  {
+    "name": "fixation 5 (ratio 0.80)",
+    "input": "Smooth reading works.",
+    "options": { "fixation": 5 },
+    "html": "<b>Smoot</b>h <b>readin</b>g <b>work</b>s."
+  },
+  {
+    "name": "SPEC section 2 example table at strength 3",
+    "input": "a to the read smooth reading",
+    "options": { "fixation": 3 },
+    "html": "<b>a</b> <b>t</b>o <b>th</b>e <b>re</b>ad <b>smo</b>oth <b>read</b>ing"
+  },
+  {
+    "name": "multiple sentences and newlines",
+    "input": "One two.\nThree four.",
+    "options": { "fixation": 3 },
+    "html": "<b>On</b>e <b>tw</b>o.\n<b>Thr</b>ee <b>fo</b>ur."
+  }
+]

@@ -1,0 +1,62 @@
+[
+  {
+    "name": "emphasizeNumbers off (default)",
+    "input": "Read 42 books in 2024.",
+    "options": { "fixation": 3, "emphasizeNumbers": false },
+    "html": "<b>Re</b>ad 42 <b>boo</b>ks <b>i</b>n 2024."
+  },
+  {
+    "name": "emphasizeNumbers on",
+    "input": "Read 42 books in 2024.",
+    "options": { "fixation": 3, "emphasizeNumbers": true },
+    "html": "<b>Re</b>ad <b>4</b>2 <b>boo</b>ks <b>i</b>n <b>20</b>24."
+  },
+  {
+    "name": "minWordLength 3",
+    "input": "I am on a big trip",
+    "options": { "fixation": 3, "minWordLength": 3 },
+    "html": "I am on a <b>bi</b>g <b>tr</b>ip"
+  },
+  {
+    "name": "minWordLength 4 with emphasizeNumbers",
+    "input": "Read 42 books in 2024.",
+    "options": { "fixation": 3, "minWordLength": 4, "emphasizeNumbers": true },
+    "html": "<b>Re</b>ad 42 <b>boo</b>ks in <b>20</b>24."
+  },
+  {
+    "name": "className only",
+    "input": "Smooth reading",
+    "options": { "fixation": 3, "className": "sr-fixation" },
+    "html": "<b class=\"sr-fixation\">Smo</b>oth <b class=\"sr-fixation\">read</b>ing"
+  },
+  {
+    "name": "span markup with restTag and both class names",
+    "input": "Smooth reading",
+    "options": {
+      "fixation": 3,
+      "tag": "span",
+      "className": "sr-fixation",
+      "restTag": "span",
+      "restClassName": "sr-rest"
+    },
+    "html": "<span class=\"sr-fixation\">Smo</span><span class=\"sr-rest\">oth</span> <span class=\"sr-fixation\">read</span><span class=\"sr-rest\">ing</span>"
+  },
+  {
+    "name": "restTag without a class name",
+    "input": "Smooth",
+    "options": { "fixation": 3, "restTag": "i" },
+    "html": "<b>Smo</b><i>oth</i>"
+  },
+  {
+    "name": "custom skipTags",
+    "input": "Try <em>this</em> now.",
+    "options": { "fixation": 3, "skipTags": ["em"] },
+    "html": "<b>Tr</b>y <em>this</em> <b>no</b>w."
+  },
+  {
+    "name": "default skipTags no longer apply when skipTags is overridden",
+    "input": "Try <code>this</code> now.",
+    "options": { "fixation": 3, "skipTags": ["em"] },
+    "html": "<b>Tr</b>y <code><b>th</b>is</code> <b>no</b>w."
+  }
+]

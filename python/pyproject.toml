@@ -1,0 +1,61 @@
+[build-system]
+requires = ["hatchling>=1.21"]
+build-backend = "hatchling.build"
+
+[project]
+name = "smooth-reading"
+version = "0.1.0"
+description = "Emphasise the leading letters of every word to create artificial fixation points."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{ name = "The Smooth Reading contributors" }]
+keywords = [
+  "reading",
+  "readability",
+  "typography",
+  "accessibility",
+  "fixation",
+  "text-formatting",
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: Apache Software License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3 :: Only",
+  "Topic :: Text Processing :: Markup :: HTML",
+  "Typing :: Typed",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/PythonShe/smooth_reading"
+Source = "https://github.com/PythonShe/smooth_reading"
+Issues = "https://github.com/PythonShe/smooth_reading/issues"
+
+[project.scripts]
+smooth-reading = "smooth_reading.cli:main"
+
+[project.optional-dependencies]
+dev = ["pytest>=7", "mypy>=1.8"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["smooth_reading"]
+
+[tool.hatch.build.targets.sdist]
+include = ["smooth_reading", "tests", "README.md", "LICENSE"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true

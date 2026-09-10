@@ -1,0 +1,11 @@
+/*
+ * Optional stylesheet for @smooth-reading/core (SPEC §5).
+ *
+ * Import it only if you render with `className: "sr-fixation"` (and optionally
+ * `restClassName: "sr-rest"`); the default `tag: "b"` output needs no CSS.
+ *
+ *   import "@smooth-reading/core/styles.css";
+ */
+
+.sr-fixation { font-weight: 700; }
+.sr-rest     { opacity: var(--sr-rest-opacity, 1); }

@@ -40,7 +40,7 @@ Special cases. Suppression rules are evaluated first; if any of them applies the
 
 A word that receives no fixation still consumes a saccade index (§4) and is emitted as plain text, never wrapped in `restTag`.
 
-`round_half_up(x)` means `floor(x + 0.5)`. Ports must use this exact rounding (not banker's rounding) so results are identical across languages.
+`round_half_up(x)` means `floor(x + 0.5)`. To avoid floating-point drift, ports compute it in integer arithmetic as `floor((n * percent + 50) / 100)` with `percent ∈ {20, 35, 50, 65, 80}`. Ports must use this exact rounding (not banker's rounding) so results are identical across languages.
 
 Examples at default strength 3:
 
@@ -64,7 +64,7 @@ An **override function** may replace the algorithm entirely (all special cases i
 * Fallback (no `Intl.Segmenter`, and all non-JS ports) — a Unicode-aware regular expression:
   `[\p{L}\p{N}\p{M}]+(?:['’][\p{L}\p{N}\p{M}]+)*`
   This mirrors ICU's default word-break rules for Latin-like text (apostrophe joins, hyphen splits), so `Intl.Segmenter` and the regex produce identical tokens for every `common` fixture. `common` fixtures avoid inputs where ICU and the regex are known to differ (decimal numbers such as `3.14`, underscores, emoji).
-  Runs of CJK ideographs (`\p{Script=Han}`, Hiragana, Katakana, Hangul) are treated as words of length 1 per grapheme cluster **run**: each ideograph run of length `k` is emphasised on its first `max(1, round_half_up(k * ratio))` clusters. Ports document which tokenizer they use; fixtures are split into `fixtures/common/*` (must match in every port) and `fixtures/segmenter/*` (only required when `Intl.Segmenter` is used).
+  Runs of CJK ideographs (`\p{Script=Han}`, Hiragana, Katakana, Hangul) and Thai are treated as one word per **run**, and the uniform §2 rules apply to that run. Ports document which tokenizer they use; fixtures are split into `fixtures/common/*` (must match in every port) and `fixtures/segmenter/*` (only required when `Intl.Segmenter` is used).
 * The `locale` option (BCP-47 string, default `undefined` → runtime default) is passed straight to the segmenter.
 * Grapheme clusters are counted with `Intl.Segmenter(locale, { granularity: "grapheme" })` when available, otherwise by code points (`Array.from(word).length`). Combining marks therefore never get split from their base.
 
@@ -77,7 +77,7 @@ export interface SmoothOptions {
   minWordLength?: number;               // default 1
   emphasizeNumbers?: boolean;           // default false
   locale?: string;                      // BCP-47
-  fixationLength?: (word: string, graphemes: number, opts: Required<SmoothOptions>) => number;
+  fixationLength?: FixationLengthFn;   // (word, graphemes, opts: ResolvedSmoothOptions) => number; result truncated and clamped to 0..graphemes
 }
 
 export type Token =
@@ -100,14 +100,15 @@ export function toHtml(text: string, options?: HtmlOptions): string;
 // elements matching `skipSelector`. Returns a restore() function.
 export function applyToElement(root: Element, options?: DomOptions): () => void;
 
-export const defaults: Required<SmoothOptions>;
+export interface ResolvedSmoothOptions { fixation: 1|2|3|4|5; saccade: number; minWordLength: number; emphasizeNumbers: boolean; locale: string | undefined; fixationLength: FixationLengthFn | undefined }
+export const defaults: ResolvedSmoothOptions;
 ```
 
 Rules:
 
 * `toHtml` escapes `<`, `>`, `&`, `"` in **text** it emits. Existing tags are passed through verbatim when `ignoreHtmlTags` is `true`.
 * `saccade` counts **word** tokens only; the first word of the input always gets a fixation (index 0 mod saccade).
-* Numbers count towards saccade indexing even when not emphasised.
+* Every word token consumes a saccade index, including numbers, words below `minWordLength` and single letters below strength 3. Text inside `skipTags` is never tokenised and consumes nothing.
 * When `ignoreHtmlTags` is `true`, the emphasis `tag` and `restTag` themselves are implicitly added to `skipTags`, so already-emphasised markup is never nested: `<b>Smooth</b> reading` → `<b>Smooth</b> <b>read</b>ing`. Full idempotence of `toHtml(toHtml(x))` is **not** guaranteed, because the un-emphasised remainder of a word is plain text and gets emphasised on the second pass. `applyToElement` is idempotent: it marks the wrappers it creates and skips them on re-application.
 * Entities: with `ignoreHtmlTags: true`, existing character references (`&amp;`, `&#x27;`, …) are passed through verbatim and act as word boundaries; a bare `&` that does not start a reference is escaped. With `ignoreHtmlTags: false`, every `&` is escaped. A `<` only starts markup when followed by a letter, `/`, `!` or `?`; otherwise it is text and escaped.
 * `toHtml` output is deterministic: the same input and options always produce the same string.

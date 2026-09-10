@@ -1,0 +1,38 @@
+[
+  {
+    "name": "saccade 1 emphasises every word",
+    "input": "Read 42 books in 2024 now.",
+    "options": { "fixation": 3, "saccade": 1 },
+    "html": "<b>Re</b>ad 42 <b>boo</b>ks <b>i</b>n 2024 <b>no</b>w."
+  },
+  {
+    "name": "saccade 2: numbers still consume a word index",
+    "input": "Read 42 books in 2024 now.",
+    "options": { "fixation": 3, "saccade": 2 },
+    "html": "<b>Re</b>ad 42 <b>boo</b>ks in 2024 now."
+  },
+  {
+    "name": "saccade 3: numbers still consume a word index",
+    "input": "Read 42 books in 2024 now.",
+    "options": { "fixation": 3, "saccade": 3 },
+    "html": "<b>Re</b>ad 42 books <b>i</b>n 2024 now."
+  },
+  {
+    "name": "saccade 2 with emphasizeNumbers",
+    "input": "Read 42 books in 2024 now.",
+    "options": { "fixation": 3, "saccade": 2, "emphasizeNumbers": true },
+    "html": "<b>Re</b>ad 42 <b>boo</b>ks in <b>20</b>24 now."
+  },
+  {
+    "name": "saccade indexing continues across HTML tags",
+    "input": "<p>Read 42 books</p><p>in 2024 now.</p>",
+    "options": { "fixation": 3, "saccade": 2 },
+    "html": "<p><b>Re</b>ad 42 <b>boo</b>ks</p><p>in 2024 now.</p>"
+  },
+  {
+    "name": "saccade 2 with words too short to emphasise still consuming an index",
+    "input": "a e i o u",
+    "options": { "fixation": 3, "saccade": 2 },
+    "html": "<b>a</b> e <b>i</b> o <b>u</b>"
+  }
+]

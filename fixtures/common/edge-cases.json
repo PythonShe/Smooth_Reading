@@ -1,0 +1,154 @@
+[
+  {
+    "name": "empty string",
+    "input": "",
+    "options": {},
+    "html": ""
+  },
+  {
+    "name": "whitespace only",
+    "input": "  \n\t ",
+    "options": {},
+    "html": "  \n\t "
+  },
+  {
+    "name": "single-letter words at strength 2 get no fixation",
+    "input": "a e i o u",
+    "options": {
+      "fixation": 2
+    },
+    "html": "a e i o u"
+  },
+  {
+    "name": "single-letter words at strength 3 are fully emphasised",
+    "input": "a e i o u",
+    "options": {
+      "fixation": 3
+    },
+    "html": "<b>a</b> <b>e</b> <b>i</b> <b>o</b> <b>u</b>"
+  },
+  {
+    "name": "leading and trailing punctuation stays outside the fixation",
+    "input": "...Hello, world!!!",
+    "options": {
+      "fixation": 3
+    },
+    "html": "...<b>Hel</b>lo, <b>wor</b>ld!!!"
+  },
+  {
+    "name": "straight apostrophe joins a word",
+    "input": "don't stop",
+    "options": {
+      "fixation": 3
+    },
+    "html": "<b>don</b>'t <b>st</b>op"
+  },
+  {
+    "name": "typographic apostrophe joins a word",
+    "input": "it’s fine",
+    "options": {
+      "fixation": 3
+    },
+    "html": "<b>it</b>’s <b>fi</b>ne"
+  },
+  {
+    "name": "hyphens split words",
+    "input": "well-known text-vide",
+    "options": {
+      "fixation": 3
+    },
+    "html": "<b>we</b>ll-<b>kno</b>wn <b>te</b>xt-<b>vi</b>de"
+  },
+  {
+    "name": "combining marks count as one grapheme (decomposed naive)",
+    "input": "nai\u0308ve reading",
+    "options": {
+      "fixation": 3
+    },
+    "html": "<b>nai\u0308</b>ve <b>read</b>ing"
+  },
+  {
+    "name": "emoji between words is a separator",
+    "input": "hello 👋 world",
+    "options": {
+      "fixation": 3
+    },
+    "html": "<b>hel</b>lo 👋 <b>wor</b>ld"
+  },
+  {
+    "name": "Cyrillic",
+    "input": "Привет мир",
+    "options": {
+      "fixation": 3
+    },
+    "html": "<b>При</b>вет <b>ми</b>р"
+  },
+  {
+    "name": "Greek",
+    "input": "Καλημέρα κόσμε",
+    "options": {
+      "fixation": 3
+    },
+    "html": "<b>Καλη</b>μέρα <b>κόσ</b>με"
+  },
+  {
+    "name": "Arabic (RTL): the bold prefix is the logical start of the word",
+    "input": "\u0645\u0631\u062d\u0628\u0627 \u0628\u0627\u0644\u0639\u0627\u0644\u0645",
+    "options": {
+      "fixation": 3
+    },
+    "html": "<b>\u0645\u0631\u062d</b>\u0628\u0627 <b>\u0628\u0627\u0644\u0639</b>\u0627\u0644\u0645"
+  },
+  {
+    "name": "ampersand and angle brackets are escaped when tags are not ignored",
+    "input": "Tom & Jerry <3 > 2",
+    "options": {
+      "fixation": 3,
+      "ignoreHtmlTags": false
+    },
+    "html": "<b>To</b>m &amp; <b>Jer</b>ry &lt;3 &gt; 2"
+  },
+  {
+    "name": "double quotes are escaped",
+    "input": "He said \"hi\" & left",
+    "options": {
+      "fixation": 3,
+      "ignoreHtmlTags": false
+    },
+    "html": "<b>H</b>e <b>sa</b>id &quot;<b>h</b>i&quot; &amp; <b>le</b>ft"
+  },
+  {
+    "name": "existing tags pass through verbatim with ignoreHtmlTags",
+    "input": "<p>Smooth <em>reading</em> works.</p>",
+    "options": {
+      "fixation": 3,
+      "ignoreHtmlTags": true
+    },
+    "html": "<p><b>Smo</b>oth <em><b>read</b>ing</em> <b>wor</b>ks.</p>"
+  },
+  {
+    "name": "text inside default skipTags is untouched",
+    "input": "Try <code>toHtml(x)</code> now.",
+    "options": {
+      "fixation": 3
+    },
+    "html": "<b>Tr</b>y <code>toHtml(x)</code> <b>no</b>w."
+  },
+  {
+    "name": "already emphasised markup is not wrapped a second time",
+    "input": "<b>Smooth</b> reading",
+    "options": {
+      "fixation": 3
+    },
+    "html": "<b>Smooth</b> <b>read</b>ing"
+  },
+  {
+    "name": "markup is escaped as plain text when ignoreHtmlTags is false",
+    "input": "<p>Hi</p>",
+    "options": {
+      "fixation": 3,
+      "ignoreHtmlTags": false
+    },
+    "html": "&lt;<b>p</b>&gt;<b>H</b>i&lt;/<b>p</b>&gt;"
+  }
+]
