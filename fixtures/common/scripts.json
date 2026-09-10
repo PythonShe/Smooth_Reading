@@ -1,0 +1,272 @@
+[
+  {
+    "name": "Korean: Hangul syllables separated by spaces",
+    "input": "한국어 문장을 읽습니다",
+    "options": {},
+    "html": "<b>한국</b>어 <b>문장</b>을 <b>읽습</b>니다"
+  },
+  {
+    "name": "Korean: punctuation stays outside the word",
+    "input": "안녕하세요, 세계!",
+    "options": {},
+    "html": "<b>안녕하</b>세요, <b>세</b>계!"
+  },
+  {
+    "name": "Korean: decomposed jamo (L V T) form one grapheme per syllable; fixation 1 never splits a cluster",
+    "input": "한글 \u1112\u1161\u11ab\u1100\u1173\u11af",
+    "options": {
+      "fixation": 1
+    },
+    "html": "<b>한</b>글 <b>\u1112\u1161\u11ab</b>\u1100\u1173\u11af"
+  },
+  {
+    "name": "Korean: decomposed jamo word of three syllables at fixation 3",
+    "input": "\u1112\u1161\u11ab\u1100\u116e\u11a8\u110b\u1165",
+    "options": {},
+    "html": "<b>\u1112\u1161\u11ab\u1100\u116e\u11a8</b>\u110b\u1165"
+  },
+  {
+    "name": "Vietnamese: precomposed diacritics",
+    "input": "Tiếng Việt rất đẹp",
+    "options": {},
+    "html": "<b>Tiế</b>ng <b>Vi</b>ệt <b>rấ</b>t <b>đẹ</b>p"
+  },
+  {
+    "name": "Vietnamese: decomposed diacritics (NFD) are one grapheme per letter",
+    "input": "Vie\u0323\u0302t Nam",
+    "options": {},
+    "html": "<b>Vi</b>e\u0323\u0302t <b>Na</b>m"
+  },
+  {
+    "name": "Hindi: matras, anusvara, nukta and candrabindu stay with their consonant",
+    "input": "मैं हिंदी समाचार पढ़ता हूँ",
+    "options": {},
+    "html": "<b>मैं</b> <b>हिं</b>दी <b>समा</b>चार <b>पढ़</b>ता <b>हूँ</b>"
+  },
+  {
+    "name": "Hindi: conjunct नमस्ते (स्ते is one cluster)",
+    "input": "नमस्ते दुनिया",
+    "options": {},
+    "html": "<b>नम</b>स्ते <b>दुनि</b>या"
+  },
+  {
+    "name": "Hindi: conjunct क्षत्रिय is 3 clusters (Unicode 15.1 conjunct rule), fixation 3",
+    "input": "क्षत्रिय",
+    "options": {},
+    "html": "<b>क्षत्रि</b>य"
+  },
+  {
+    "name": "Hindi: conjunct क्षत्रिय at fixation 2 keeps the whole क्ष cluster",
+    "input": "क्षत्रिय",
+    "options": {
+      "fixation": 2
+    },
+    "html": "<b>क्ष</b>त्रिय"
+  },
+  {
+    "name": "Hindi: conjunct क्षत्रिय at fixation 5",
+    "input": "क्षत्रिय",
+    "options": {
+      "fixation": 5
+    },
+    "html": "<b>क्षत्रि</b>य"
+  },
+  {
+    "name": "Hindi: उम्र is 2 clusters, conjunct म्र is never split",
+    "input": "मेरी उम्र ४२ है",
+    "options": {},
+    "html": "<b>मे</b>री <b>उ</b>म्र ४२ <b>है</b>"
+  },
+  {
+    "name": "Bengali: vowel signs and anusvara stay with their consonant",
+    "input": "আমি বাংলা ভাষা ভালোবাসি",
+    "options": {},
+    "html": "<b>আ</b>মি <b>বাং</b>লা <b>ভা</b>ষা <b>ভালো</b>বাসি"
+  },
+  {
+    "name": "Tamil: pulli (virama) stays with its consonant",
+    "input": "தமிழ் மொழி",
+    "options": {},
+    "html": "<b>தமி</b>ழ் <b>மொ</b>ழி"
+  },
+  {
+    "name": "Arabic with tashkeel: harakat and shadda stay with their letter",
+    "input": "الْحَمْدُ لِلَّهِ",
+    "options": {},
+    "html": "<b>الْحَ</b>مْدُ <b>لِلَّ</b>هِ"
+  },
+  {
+    "name": "Hebrew with niqqud: points and shin dot stay with their letter",
+    "input": "שָׁלוֹם עוֹלָם",
+    "options": {},
+    "html": "<b>שָׁל</b>וֹם <b>עוֹ</b>לָם"
+  },
+  {
+    "name": "Persian",
+    "input": "زبان فارسی زیباست",
+    "options": {},
+    "html": "<b>زب</b>ان <b>فار</b>سی <b>زیب</b>است"
+  },
+  {
+    "name": "Urdu",
+    "input": "اردو ہماری قومی زبان ہے",
+    "options": {},
+    "html": "<b>ار</b>دو <b>ہما</b>ری <b>قو</b>می <b>زب</b>ان <b>ہ</b>ے"
+  },
+  {
+    "name": "Greek polytonic (precomposed breathings and accents)",
+    "input": "Ἐν ἀρχῇ ἦν ὁ λόγος",
+    "options": {},
+    "html": "<b>Ἐ</b>ν <b>ἀρ</b>χῇ <b>ἦ</b>ν <b>ὁ</b> <b>λόγ</b>ος"
+  },
+  {
+    "name": "Turkish dotted and dotless i, apostrophe suffix joins",
+    "input": "İstanbul'da ılık bir gün",
+    "options": {},
+    "html": "<b>İstanb</b>ul'da <b>ıl</b>ık <b>bi</b>r <b>gü</b>n"
+  },
+  {
+    "name": "German ß and a 34-letter compound word",
+    "input": "Straße Donaudampfschifffahrtsgesellschaft",
+    "options": {},
+    "html": "<b>Str</b>aße <b>Donaudampfschifff</b>ahrtsgesellschaft"
+  },
+  {
+    "name": "mixed direction: Latin, Arabic, Latin",
+    "input": "Hello مرحبا world",
+    "options": {},
+    "html": "<b>Hel</b>lo <b>مرح</b>با <b>wor</b>ld"
+  },
+  {
+    "name": "mixed direction: Hebrew then Latin",
+    "input": "שלום world",
+    "options": {},
+    "html": "<b>של</b>ום <b>wor</b>ld"
+  },
+  {
+    "name": "Arabic-Indic digits are \\p{Nd}: ٤٢ is a number and gets no fixation by default",
+    "input": "عمري ٤٢ سنة",
+    "options": {},
+    "html": "<b>عم</b>ري ٤٢ <b>سن</b>ة"
+  },
+  {
+    "name": "Arabic-Indic digits with emphasizeNumbers",
+    "input": "عمري ٤٢ سنة",
+    "options": {
+      "emphasizeNumbers": true
+    },
+    "html": "<b>عم</b>ري <b>٤</b>٢ <b>سن</b>ة"
+  },
+  {
+    "name": "Devanagari digits ४२ are \\p{Nd}: not emphasised but they consume a saccade index",
+    "input": "मेरी उम्र ४२ है",
+    "options": {
+      "saccade": 3
+    },
+    "html": "<b>मे</b>री उम्र ४२ <b>है</b>"
+  },
+  {
+    "name": "emoji with a skin-tone modifier between words is a separator",
+    "input": "Hello 👋\ud83c\udffd world",
+    "options": {},
+    "html": "<b>Hel</b>lo 👋\ud83c\udffd <b>wor</b>ld"
+  },
+  {
+    "name": "emoji ZWJ sequence between words is a separator",
+    "input": "family 👨\u200d👩\u200d👧 time",
+    "options": {},
+    "html": "<b>fam</b>ily 👨\u200d👩\u200d👧 <b>ti</b>me"
+  },
+  {
+    "name": "adjacent emoji with different skin tones",
+    "input": "Hi 👍\ud83c\udffb👍\ud83c\udfff there",
+    "options": {},
+    "html": "<b>H</b>i 👍\ud83c\udffb👍\ud83c\udfff <b>the</b>re"
+  },
+  {
+    "name": "emoji with a variation selector (U+FE0F) between words: the mark belongs to the separator, never starts a word",
+    "input": "I ❤️ you",
+    "options": {},
+    "html": "<b>I</b> ❤️ <b>yo</b>u"
+  },
+  {
+    "name": "Arabic sentence at fixation 1",
+    "input": "القراءة السلسة ممتعة",
+    "options": {
+      "fixation": 1
+    },
+    "html": "<b>ا</b>لقراءة <b>ا</b>لسلسة <b>م</b>متعة"
+  },
+  {
+    "name": "Arabic sentence at fixation 2",
+    "input": "القراءة السلسة ممتعة",
+    "options": {
+      "fixation": 2
+    },
+    "html": "<b>ال</b>قراءة <b>ال</b>سلسة <b>مم</b>تعة"
+  },
+  {
+    "name": "Arabic sentence at fixation 3",
+    "input": "القراءة السلسة ممتعة",
+    "options": {
+      "fixation": 3
+    },
+    "html": "<b>القر</b>اءة <b>الس</b>لسة <b>ممت</b>عة"
+  },
+  {
+    "name": "Arabic sentence at fixation 4",
+    "input": "القراءة السلسة ممتعة",
+    "options": {
+      "fixation": 4
+    },
+    "html": "<b>القرا</b>ءة <b>السل</b>سة <b>ممت</b>عة"
+  },
+  {
+    "name": "Arabic sentence at fixation 5",
+    "input": "القراءة السلسة ممتعة",
+    "options": {
+      "fixation": 5
+    },
+    "html": "<b>القراء</b>ة <b>السلس</b>ة <b>ممتع</b>ة"
+  },
+  {
+    "name": "Devanagari sentence at fixation 1",
+    "input": "मैं हिंदी समाचार पढ़ता हूँ",
+    "options": {
+      "fixation": 1
+    },
+    "html": "मैं <b>हिं</b>दी <b>स</b>माचार <b>प</b>ढ़ता हूँ"
+  },
+  {
+    "name": "Devanagari sentence at fixation 2",
+    "input": "मैं हिंदी समाचार पढ़ता हूँ",
+    "options": {
+      "fixation": 2
+    },
+    "html": "मैं <b>हिं</b>दी <b>स</b>माचार <b>प</b>ढ़ता हूँ"
+  },
+  {
+    "name": "Devanagari sentence at fixation 3",
+    "input": "मैं हिंदी समाचार पढ़ता हूँ",
+    "options": {
+      "fixation": 3
+    },
+    "html": "<b>मैं</b> <b>हिं</b>दी <b>समा</b>चार <b>पढ़</b>ता <b>हूँ</b>"
+  },
+  {
+    "name": "Devanagari sentence at fixation 4",
+    "input": "मैं हिंदी समाचार पढ़ता हूँ",
+    "options": {
+      "fixation": 4
+    },
+    "html": "<b>मैं</b> <b>हिं</b>दी <b>समाचा</b>र <b>पढ़</b>ता <b>हूँ</b>"
+  },
+  {
+    "name": "Devanagari sentence at fixation 5",
+    "input": "मैं हिंदी समाचार पढ़ता हूँ",
+    "options": {
+      "fixation": 5
+    },
+    "html": "<b>मैं</b> <b>हिंदी</b> <b>समाचा</b>र <b>पढ़</b>ता <b>हूँ</b>"
+  }
+]

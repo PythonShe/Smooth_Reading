@@ -59,15 +59,24 @@ def _is_mark(char: str) -> bool:
     return unicodedata.category(char)[0] == "M"
 
 
+def _starts_word(char: str) -> bool:
+    """A word begins with a letter or number, never with a combining mark."""
+    return unicodedata.category(char)[0] in "LN"
+
+
 def iter_raw_tokens(text: str) -> Iterator[tuple[bool, str]]:
     """Yield ``(is_word, text)`` pairs that concatenate back to ``text``."""
     length = len(text)
     index = 0
     while index < length:
         start = index
-        if not is_word_char(text[index]):
-            # Separator: a maximal run of non-word characters.
-            while index < length and not is_word_char(text[index]):
+        if not _starts_word(text[index]):
+            # Separator: a maximal run of non-word characters. A combining
+            # mark that does not follow a word character -- the variation
+            # selector of an emoji such as ❤️, say -- belongs to the separator
+            # it follows, exactly as in ICU (UAX #29 WB4); a word never starts
+            # with a mark.
+            while index < length and not _starts_word(text[index]):
                 index += 1
             yield False, text[start:index]
         elif is_cjk(text[index]):

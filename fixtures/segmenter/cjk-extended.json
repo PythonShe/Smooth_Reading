@@ -1,0 +1,136 @@
+[
+  {
+    "name": "Simplified Chinese: dictionary word breaks (zh)",
+    "input": "我们今天学习中文。",
+    "options": {
+      "locale": "zh"
+    },
+    "html": "<b>我</b>们<b>今</b>天<b>学</b>习<b>中</b>文。"
+  },
+  {
+    "name": "Traditional Chinese: dictionary word breaks (zh-Hant)",
+    "input": "我們今天學習中文。",
+    "options": {
+      "locale": "zh-Hant"
+    },
+    "html": "<b>我</b>們<b>今</b>天<b>學</b>習<b>中</b>文。"
+  },
+  {
+    "name": "Japanese: kanji, hiragana particles, katakana loanword and 「」 brackets (ja)",
+    "input": "私はスマートフォンで「ニュース」を読む。",
+    "options": {
+      "locale": "ja"
+    },
+    "html": "<b>私</b><b>は</b><b>スマ</b>ート<b>フォ</b>ン<b>で</b>「<b>ニュ</b>ース」<b>を</b><b>読</b>む。"
+  },
+  {
+    "name": "Korean without spaces is one word (no dictionary breaking for Hangul)",
+    "input": "한국어문장",
+    "options": {
+      "locale": "ko"
+    },
+    "html": "<b>한국어</b>문장"
+  },
+  {
+    "name": "Thai: four dictionary words, vowel and tone marks stay with their base (th)",
+    "input": "ฉันชอบอ่านหนังสือ",
+    "options": {
+      "locale": "th"
+    },
+    "html": "<b>ฉั</b>น<b>ชอ</b>บ<b>อ่า</b>น<b>หนัง</b>สือ"
+  },
+  {
+    "name": "Lao: three dictionary words (lo)",
+    "input": "ພາສາລາວງ່າຍ",
+    "options": {
+      "locale": "lo"
+    },
+    "html": "<b>ພາ</b>ສາ<b>ລາ</b>ວ<b>ງ່າ</b>ຍ"
+  },
+  {
+    "name": "Khmer: three dictionary words (km)",
+    "input": "អានសៀវភៅនេះ",
+    "options": {
+      "locale": "km"
+    },
+    "html": "<b>អា</b>ន<b>សៀវ</b>ភៅ<b>នេះ</b>"
+  },
+  {
+    "name": "Burmese: dictionary words, asat and spacing vowel signs (my)",
+    "input": "သူစာအုပ်ဖတ်သည်",
+    "options": {
+      "locale": "my"
+    },
+    "html": "<b>သူ</b><b>စာ</b>အုပ်<b>ဖတ်</b>သည်"
+  },
+  {
+    "name": "mixed Chinese with a Latin brand name and digits (zh)",
+    "input": "我用iPhone 15看视频",
+    "options": {
+      "locale": "zh"
+    },
+    "html": "<b>我</b><b>用</b><b>iPh</b>one 15<b>看</b><b>视</b>频"
+  },
+  {
+    "name": "mixed Chinese with a brand name and emphasizeNumbers (zh)",
+    "input": "我们用iPhone 15拍照",
+    "options": {
+      "locale": "zh",
+      "emphasizeNumbers": true
+    },
+    "html": "<b>我</b>们<b>用</b><b>iPh</b>one <b>1</b>5<b>拍</b>照"
+  },
+  {
+    "name": "full-width Latin letters are ordinary letters",
+    "input": "ＨＥＬＬＯ ｗｏｒｌｄ",
+    "options": {
+      "locale": "ja"
+    },
+    "html": "<b>ＨＥＬ</b>ＬＯ <b>ｗｏｒ</b>ｌｄ"
+  },
+  {
+    "name": "Japanese sentence at fixation 1 (ja)",
+    "input": "猫がテレビを見ている。",
+    "options": {
+      "locale": "ja",
+      "fixation": 1
+    },
+    "html": "猫が<b>テ</b>レビを見て<b>い</b>る。"
+  },
+  {
+    "name": "Japanese sentence at fixation 2 (ja)",
+    "input": "猫がテレビを見ている。",
+    "options": {
+      "locale": "ja",
+      "fixation": 2
+    },
+    "html": "猫が<b>テ</b>レビを見て<b>い</b>る。"
+  },
+  {
+    "name": "Japanese sentence at fixation 3 (ja)",
+    "input": "猫がテレビを見ている。",
+    "options": {
+      "locale": "ja",
+      "fixation": 3
+    },
+    "html": "<b>猫</b><b>が</b><b>テレ</b>ビ<b>を</b><b>見</b><b>て</b><b>い</b>る。"
+  },
+  {
+    "name": "Japanese sentence at fixation 4 (ja)",
+    "input": "猫がテレビを見ている。",
+    "options": {
+      "locale": "ja",
+      "fixation": 4
+    },
+    "html": "<b>猫</b><b>が</b><b>テレ</b>ビ<b>を</b><b>見</b><b>て</b><b>い</b>る。"
+  },
+  {
+    "name": "Japanese sentence at fixation 5 (ja)",
+    "input": "猫がテレビを見ている。",
+    "options": {
+      "locale": "ja",
+      "fixation": 5
+    },
+    "html": "<b>猫</b><b>が</b><b>テレ</b>ビ<b>を</b><b>見</b><b>て</b><b>いる</b>。"
+  }
+]

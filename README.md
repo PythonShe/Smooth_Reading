@@ -75,6 +75,70 @@ Controlled studies (Readwise 2022, Snell 2024, Možina et al. 2025) found **no r
 - **Presentation is CSS**: the transform emits neutral markup; weight, colour and opacity live in a stylesheet you control.
 - **No runtime dependencies, no network, no telemetry.**
 
+## Languages and scripts
+
+CJK, the other Asian scripts and right-to-left text are the point of this
+library, not an afterthought. Every port passes `fixtures/common/scripts.json`
+(Korean, Vietnamese, Hindi, Bengali, Tamil, Arabic, Hebrew, Persian, Urdu,
+Greek, Turkish, German, mixed-direction text, emoji); the ICU-backed ports
+also pass `fixtures/segmenter/` (Chinese, Japanese, Thai, Lao, Khmer, Burmese,
+bidi paragraphs). The full matrix and the per-script reasoning are in
+[docs/LANGUAGES.md](docs/LANGUAGES.md).
+
+| Script | `@smooth-reading/core` | Swift | Android | Python | Status |
+| --- | --- | --- | --- | --- | --- |
+| Latin, Greek, Cyrillic, Vietnamese, Turkish, German | `Intl.Segmenter` (regex fallback) | ICU | ICU or spec regex | spec regex | identical everywhere |
+| Korean (Hangul, spaces) | same | ICU | ICU or spec regex | spec regex | identical; decomposed jamo compose in every port |
+| Chinese, Japanese | `Intl.Segmenter` dictionary | ICU dictionary | `android.icu` dictionary | one word per run | dictionary breaks in ICU ports; predictable run rule in Python |
+| Thai, Lao, Khmer, Burmese | `Intl.Segmenter` dictionary | ICU dictionary | `android.icu` dictionary | one word per run | as above |
+| Devanagari, Bengali, Gujarati, Oriya, Telugu, Malayalam | same as Latin | ICU | ICU or spec regex | spec regex | identical; conjuncts (`क्ष`) are one cluster (Unicode 15.1) — see the Android note |
+| Tamil and other Indic scripts | same as Latin | ICU | ICU or spec regex | spec regex | identical; marks stay with their consonant |
+| Arabic, Persian, Urdu, Hebrew | same as Latin | ICU | ICU or spec regex | spec regex | identical; tashkeel and niqqud stay with their letter; Persian ZWNJ words stay whole only in ICU ports |
+| Digits of any script (`\p{Nd}`) | — | — | — | — | numbers: no fixation unless `emphasizeNumbers`, still count for `saccade` |
+| Emoji, modifiers, ZWJ and variation-selector sequences | — | — | — | — | separators, passed through untouched |
+
+**ICU dictionary breaking** (real word boundaries for Chinese, Japanese,
+Thai, Lao, Khmer and Burmese) is used by the core (`Intl.Segmenter`), Swift
+(`enumerateSubstrings(.byWords)` / `CFStringTokenizer`) and Android
+(`android.icu.text.BreakIterator`, the default for `annotatedString()` and
+`spanned()`). Python, Android's `SpecWordSegmenter` and the core's fallback
+(runtimes without `Intl.Segmenter`) use the spec's regular expression, where
+each run of Han, kana, Hangul or Thai is one word — predictable, but not a
+dictionary. Which runtime the fixtures were verified on, and where ICU builds
+disagree with one another (Japanese inflections, Thai compounds, Khmer conjunct
+counts, JDK 21's grapheme rules), is spelled out in `docs/LANGUAGES.md`.
+
+**Bold is typographically weak for some scripts.** Many Arabic, Devanagari,
+Bengali and Thai fonts have no bold face or a bold that barely differs from
+regular, and synthetic bold blurs conjuncts and tashkeel. Emit a class instead
+of `<b>` and style it with colour, a heavier weight, or an underline:
+
+```ts
+toHtml(text, { tag: 'span', className: 'sr-fixation', restTag: 'span', restClassName: 'sr-rest' });
+```
+
+```css
+.sr-fixation { color: var(--sr-fixation-color, #1d4ed8); font-weight: 600; }
+.sr-rest     { opacity: var(--sr-rest-opacity, 0.85); }
+```
+
+Swift and Android take the same idea as attributes: pass `fixationAttributes`
+(a colour, an underline) to `nsAttributedString` / `attributedString`, or a
+`fixationStyle` such as `SpanStyle(color = …)` to `annotatedString()`; see each
+package README.
+
+**Right-to-left text.** The fixation is always the *logical* start of the
+word (the first letters read), so Arabic and Hebrew words are emphasised on
+their right-hand side without any special handling. The emitted markup and
+attributed strings never add `dir` attributes, `<bdi>` wrappers or bidi
+control characters, and never remove the ones you supplied, so the browser's
+or platform's bidi algorithm sees exactly the text you passed in. Existing
+`<p dir="rtl">` markup is passed through verbatim. Mixed-direction inputs
+(`Hello مرحبا world`, RTL paragraphs with Latin brand names and numbers) are
+part of the fixture suite, and every port has a test that the token texts
+concatenate back to the input and that the output stripped of emphasis tags is
+the escaped input.
+
 ## Development
 
 ```bash

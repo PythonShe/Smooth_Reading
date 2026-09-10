@@ -59,6 +59,25 @@ describe('segmenter selection', () => {
     );
   });
 
+  it('composes decomposed Hangul jamo under the fallback (SPEC §3)', () => {
+    removeSegmenter();
+    const decomposed = '한글'.normalize('NFD'); // ᄒ ᅡ ᆫ ᄀ ᅳ ᆯ
+    const [word] = tokenize(decomposed, { fixation: 1 });
+    expect(word).toMatchObject({ fixation: 1, fixationText: '한'.normalize('NFD') });
+    expect(toHtml(decomposed, { fixation: 1 })).toBe(`<b>${'한'.normalize('NFD')}</b>${'글'.normalize('NFD')}`);
+  });
+
+  it('keeps Indic conjuncts in one cluster under the fallback (SPEC §3, GB9c)', () => {
+    removeSegmenter();
+    // क्ष | त्रि | य — the fixation ends after a whole conjunct, never after a virama.
+    expect(tokenize('क्षत्रिय')[0]).toMatchObject({ fixation: 2, fixationText: 'क्षत्रि', restText: 'य' });
+    // Bengali: ক্ষ is one cluster; Tamil pulli is not a linker, so தமிழ் stays 3 clusters.
+    expect(tokenize('ক্ষমা')[0]).toMatchObject({ fixation: 1, fixationText: 'ক্ষ' });
+    expect(tokenize('தமிழ்')[0]).toMatchObject({ fixation: 2, fixationText: 'தமி' });
+    // An independent vowel is not a consonant: no linking across उ.
+    expect(tokenize('उम्र')[0]).toMatchObject({ fixation: 1, fixationText: 'उ', restText: 'म्र' });
+  });
+
   it('applies the uniform rules to CJK runs under the fallback', () => {
     removeSegmenter();
     // One 5-character run -> prefix 3.

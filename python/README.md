@@ -179,13 +179,43 @@ characters is a single word and follows the same fixation rules as any other
 word. There is no dictionary-based word
 breaking, so `fixtures/segmenter/*` (which need ICU) do not apply to this port.
 
+A word never starts with a combining mark: a mark that follows a separator —
+the variation selector of `❤️`, say — stays with the separator, as in ICU, so
+emoji sequences pass through untouched.
+
 Grapheme clusters are approximated rather than fully segmented per UAX #29: a
 base character plus any following combining marks (`Mn`/`Mc`/`Me`, which covers
-variation selectors) is one cluster, ZWJ joins the following character, and
-CR+LF is one cluster. Regional-indicator pairs (flag emoji) still count as two
-and Hangul jamo sequences are not composed — none of which occur inside word
-tokens. Full UAX #29 support would need the third-party `regex` module, which
-this package deliberately avoids.
+variation selectors) is one cluster, ZWJ joins the following character,
+decomposed Hangul jamo compose into syllables, Indic conjuncts of the
+Unicode 15.1 linker scripts (Devanagari, Bengali, Gujarati, Oriya, Telugu,
+Malayalam — `क्ष`, `ক্ষ`) stay in one cluster, and CR+LF is one cluster.
+Regional-indicator pairs (flag emoji) still count as two, and Burmese spacing
+vowel signs are attached to their consonant where ICU keeps them separate —
+neither affects a `common` fixture. Full UAX #29 support would need the
+third-party `regex` module, which this package deliberately avoids.
+
+## Languages and scripts
+
+Every space-separated script — Korean, Vietnamese, Hindi and the other Indic
+scripts, Arabic, Persian, Urdu, Hebrew, Greek, Turkish, German, mixed-direction
+text, emoji — renders byte-identically to the ICU-backed ports
+(`fixtures/common/scripts.json`). Chinese, Japanese, Thai, Lao, Khmer and
+Burmese degrade predictably: each unbroken run is one word, so `我喜欢阅读`
+becomes `<b>我喜欢</b>阅读` here and `<b>我</b><b>喜</b>欢<b>阅</b>读` with a
+dictionary. The full matrix is in [`docs/LANGUAGES.md`](../docs/LANGUAGES.md).
+
+Bold is typographically weak for Arabic and Indic scripts in many fonts;
+switch to colour or a weight of your choice with a class:
+
+```python
+to_html(text, tag="span", class_name="sr-fixation", rest_tag="span", rest_class_name="sr-rest")
+```
+
+Right-to-left text needs nothing special: the fixation is the logical start of
+each word, and `to_html` never adds `dir` attributes or bidi control
+characters. `tests/test_languages.py` checks over every fixture input that the
+tokens concatenate back to the input and that the markup adds nothing but the
+emphasis tags.
 
 ## Development
 

@@ -1,0 +1,54 @@
+[
+  {
+    "name": "Arabic paragraph with an embedded Latin word and a number",
+    "input": "أنا أستخدم Python منذ 2015 لتحليل البيانات",
+    "options": {},
+    "html": "<b>أن</b>ا <b>أست</b>خدم <b>Pyt</b>hon <b>من</b>ذ 2015 <b>لتح</b>ليل <b>البي</b>انات"
+  },
+  {
+    "name": "Hebrew with a year and a hyphenated Latin name",
+    "input": "בשנת 2024 עברתי ל-Berlin",
+    "options": {},
+    "html": "<b>בש</b>נת 2024 <b>עבר</b>תי <b>ל</b>-<b>Ber</b>lin"
+  },
+  {
+    "name": "existing dir=\"rtl\" attribute is passed through verbatim, none is added",
+    "input": "<p dir=\"rtl\">مرحبا بالعالم</p>",
+    "options": {},
+    "html": "<p dir=\"rtl\"><b>مرح</b>با <b>بالع</b>الم</p>"
+  },
+  {
+    "name": "nested LTR span inside an RTL paragraph",
+    "input": "<p dir=\"rtl\">نص <span lang=\"en\">Hello</span> عربي</p>",
+    "options": {},
+    "html": "<p dir=\"rtl\"><b>ن</b>ص <span lang=\"en\"><b>Hel</b>lo</span> <b>عر</b>بي</p>"
+  },
+  {
+    "name": "Persian: ZWNJ (U+200C) stays inside the word and attaches to the preceding letter",
+    "input": "می\u200cخواهم بخوانم",
+    "options": {},
+    "html": "<b>می\u200cخو</b>اهم <b>بخو</b>انم"
+  },
+  {
+    "name": "right-to-left mark (U+200F) in the input is preserved; no bidi controls are added",
+    "input": "Hello \u200fمرحبا",
+    "options": {},
+    "html": "<b>Hel</b>lo \u200f<b>مرح</b>با"
+  },
+  {
+    "name": "saccade 2 on an Arabic sentence",
+    "input": "القراءة السلسة ممتعة جدا",
+    "options": {
+      "saccade": 2
+    },
+    "html": "<b>القر</b>اءة السلسة <b>ممت</b>عة جدا"
+  },
+  {
+    "name": "saccade 2 across an embedded Latin word",
+    "input": "أنا أستخدم Python منذ 2015",
+    "options": {
+      "saccade": 2
+    },
+    "html": "<b>أن</b>ا أستخدم <b>Pyt</b>hon منذ 2015"
+  }
+]

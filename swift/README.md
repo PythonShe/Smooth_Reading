@@ -214,6 +214,37 @@ single-scalar count is never used.
 
 This port passes both `fixtures/common/*.json` and `fixtures/segmenter/*.json`.
 
+## Languages and scripts
+
+Chinese, Japanese, Thai, Lao, Khmer and Burmese get ICU dictionary word breaks;
+Korean, Vietnamese, the Indic scripts, Arabic, Persian, Urdu, Hebrew, Greek and
+every other space-separated script are broken by ICU's default rules and
+produce the same output as every other port (`fixtures/common/scripts.json`).
+Grapheme clusters follow the Swift stdlib's UAX #29 rules: decomposed Hangul
+jamo compose, and Devanagari/Bengali conjuncts such as `क्ष` are one cluster,
+so a fixation never ends in a half-form. The full matrix, including where ICU
+builds disagree (Japanese verb endings, Thai compounds, Khmer conjunct
+counts), is in [`docs/LANGUAGES.md`](../docs/LANGUAGES.md).
+
+Two things to know:
+
+- **Traditional Chinese with a locale**: pass `Locale(identifier: "zh-Hant")`
+  (or no locale). `CFStringTokenizer` with plain `zh` splits `我們` and `學習`
+  into single characters.
+- **Bold is weak for Arabic and Indic scripts** in many fonts. Pass colour or
+  an underline instead of relying on the bold face:
+
+  ```swift
+  let attributed = SmoothReading.nsAttributedString(
+      text, fixationAttributes: [.foregroundColor: UIColor.systemBlue])  // NSColor on macOS
+  ```
+
+Right-to-left text needs nothing special: the fixation is the logical start of
+each word, and neither `html()` nor the attributed strings add `dir`
+attributes, isolates or bidi control characters — `LanguagesTests` checks over
+every fixture input that runs and tokens concatenate back to the input and
+that the markup adds nothing but the emphasis tags.
+
 ## Development
 
 ```sh

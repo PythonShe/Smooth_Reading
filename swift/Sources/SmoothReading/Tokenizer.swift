@@ -18,6 +18,10 @@ enum Tokenizer {
         }
         var ranges: [Range<String.Index>] = []
         text.enumerateSubstrings(in: range, options: [.byWords]) { _, wordRange, _, _ in
+            // `.byWords` occasionally reports a bare separator as a word (a
+            // space between a Latin brand name and digits inside Chinese text,
+            // for example); the CFStringTokenizer path applies the same filter.
+            guard isWordLike(text[wordRange]) else { return }
             ranges.append(wordRange)
         }
         return ranges
@@ -48,14 +52,16 @@ enum Tokenizer {
         return ranges
     }
 
-    /// A segment is word-like when it contains a letter, number or mark
-    /// (`\p{L}`, `\p{N}`, `\p{M}`) — the classes the spec's regex fallback uses.
+    /// A segment is word-like when it contains a letter or a number (`\p{L}`,
+    /// `\p{N}`) — the classes that may start a word in the spec's regex
+    /// fallback. Combining marks alone never make a word: `CFStringTokenizer`
+    /// reports the variation selector of `❤️` as its own token, and that must
+    /// stay a separator (SPEC §3, UAX #29 WB4).
     private static func isWordLike(_ token: Substring) -> Bool {
         token.unicodeScalars.contains { scalar in
             switch scalar.properties.generalCategory {
             case .uppercaseLetter, .lowercaseLetter, .titlecaseLetter, .modifierLetter, .otherLetter,
-                .decimalNumber, .letterNumber, .otherNumber,
-                .nonspacingMark, .spacingMark, .enclosingMark:
+                .decimalNumber, .letterNumber, .otherNumber:
                 return true
             default:
                 return false
