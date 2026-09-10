@@ -126,8 +126,20 @@ internal class HtmlRenderer(
     }
 
     private companion object {
-        private val TAG_NAME_RE = Regex("^<\\s*(/?)\\s*([a-zA-Z][^\\s/>]*)")
-        private val SELF_CLOSING_RE = Regex("/\\s*>$")
+        /**
+         * The characters JavaScript's `\s` matches, so that the tag grammar
+         * below is character-for-character the one in the TypeScript core's
+         * `html.ts` (Java's own `\s` is ASCII-only and would keep a NBSP or an
+         * ideographic space inside a tag name).
+         */
+        private const val SPACE = "\\t\\n\\u000B\\f\\r \\u00A0\\u1680\\u2000-\\u200A" +
+            "\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF"
+
+        /** `/^<\s*(\/?)\s*([a-zA-Z][^\s/>]*)/`: a tag name runs to whitespace, `/` or `>`. */
+        private val TAG_NAME_RE = Regex("^<[$SPACE]*(/?)[$SPACE]*([a-zA-Z][^$SPACE/>]*)")
+
+        /** `/\/\s*>$/`: a `/` followed only by whitespace and the final `>`. */
+        private val SELF_CLOSING_RE = Regex("/[$SPACE]*>\\z")
 
         /** Escape the four characters SPEC §4 requires escaping in emitted text. */
         fun appendEscaped(out: StringBuilder, text: String) {
@@ -153,19 +165,33 @@ internal class HtmlRenderer(
  * `markup.ts` so the ports can never disagree on what counts as markup:
  *
  * * `<` starts markup only when followed by a letter, `/`, `!` or `?`; the
- *   markup ends at the next `>` (or `-->` for a `<!--` comment). An
- *   unterminated `<` is text.
+ *   markup ends at the next `>`, or at `-->` / `]]>` for a `<!--` comment or a
+ *   `<![CDATA[` section. An unterminated `<` is text.
  * * `&` starts a character reference only when it forms `&name;`, `&#123;` or
  *   `&#x1F;`; anything else is a bare ampersand and gets escaped.
  */
 internal object Markup {
 
-    /** Index just past the markup starting at `text[i]` (a `<`), or `-1` when it is text. */
+    /**
+     * Markup blocks that may contain a bare `>`: comments and CDATA sections.
+     * Each entry is `opener to terminator`.
+     */
+    private val BLOCKS: Array<Pair<String, String>> = arrayOf(
+        "<!--" to "-->",
+        "<![CDATA[" to "]]>",
+    )
+
+    /**
+     * Index just past the markup starting at `text[i]` (a `<`), or `-1` when it
+     * is text. An unterminated comment or CDATA block degrades to an ordinary
+     * `<!...>` declaration, i.e. it ends at the first `>`.
+     */
     fun tagEnd(text: String, i: Int): Int {
         if (!isTagStart(text, i)) return -1
-        if (text.startsWith("<!--", i)) {
-            val close = text.indexOf("-->", i + 4)
-            return if (close < 0) -1 else close + 3
+        val block = BLOCKS.firstOrNull { text.startsWith(it.first, i) }
+        if (block != null) {
+            val close = text.indexOf(block.second, i + block.first.length)
+            if (close >= 0) return close + block.second.length
         }
         val close = text.indexOf('>', i + 1)
         return if (close < 0) -1 else close + 1

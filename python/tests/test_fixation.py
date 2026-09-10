@@ -6,7 +6,7 @@ from typing import Any
 
 import pytest
 
-from smooth_reading import Options, fixation_length
+from smooth_reading import Options, fixation_length, to_html
 from smooth_reading.core import _round_half_up
 from smooth_reading.graphemes import grapheme_count
 
@@ -130,10 +130,13 @@ def test_override_receives_the_resolved_options() -> None:
 @pytest.mark.parametrize(
     ("field", "value", "message"),
     [
-        ("fixation", 3.0, "fixation must be an integer from 1 to 5, got 3.0"),
+        ("fixation", "3", "fixation must be an integer from 1 to 5, got '3'"),
         ("fixation", True, "fixation must be an integer from 1 to 5, got True"),
+        ("fixation", None, "fixation must be an integer from 1 to 5, got None"),
         ("saccade", "2", "saccade must be an integer >= 1, got '2'"),
-        ("min_word_length", -1, "min_word_length must be an integer >= 0, got -1"),
+        ("saccade", False, "saccade must be an integer >= 1, got False"),
+        ("min_word_length", "1", "min_word_length must be an integer >= 0, got '1'"),
+        ("min_word_length", True, "min_word_length must be an integer >= 0, got True"),
         ("fixation_length", 3, "fixation_length must be callable or None, got 3"),
     ],
 )
@@ -153,6 +156,8 @@ def test_invalid_options_are_rejected_with_a_clear_message(
         ("fixation", 99, 5),
         ("saccade", 0, 1),
         ("saccade", -1, 1),
+        ("min_word_length", -1, 0),
+        ("min_word_length", -99, 0),
     ],
 )
 def test_out_of_range_options_are_clamped_not_rejected(
@@ -160,6 +165,36 @@ def test_out_of_range_options_are_clamped_not_rejected(
 ) -> None:
     # Spec section 4: every port clamps, none throws or silently substitutes the default.
     assert getattr(Options(**{field: value}), field) == expected
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "expected"),
+    [
+        # Truncated toward zero, like the core's ``Math.trunc``, then clamped.
+        ("fixation", 3.0, 3),
+        ("fixation", 4.9, 4),
+        ("fixation", 0.9, 1),
+        ("fixation", 5.9, 5),
+        ("fixation", -0.5, 1),
+        ("fixation", float("nan"), 3),
+        ("fixation", float("inf"), 3),
+        ("saccade", 2.7, 2),
+        ("saccade", 0.5, 1),
+        ("saccade", float("-inf"), 1),
+        ("min_word_length", 3.9, 3),
+        ("min_word_length", -0.5, 0),
+        ("min_word_length", float("nan"), 0),
+    ],
+)
+def test_non_integer_numbers_are_truncated_then_clamped(
+    field: str, value: float, expected: int
+) -> None:
+    assert getattr(Options(**{field: value}), field) == expected
+
+
+def test_truncated_fixation_drives_the_algorithm() -> None:
+    # 4.9 is a strength of 4 (ratio 0.65), not a 5 and not an error.
+    assert to_html("reading", fixation=4.9) == to_html("reading", fixation=4)
 
 
 def test_clamped_fixation_drives_the_algorithm() -> None:

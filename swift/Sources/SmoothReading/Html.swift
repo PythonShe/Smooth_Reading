@@ -65,15 +65,16 @@ extension SmoothReading {
                 flushText(upTo: cursor)
                 let raw = text[cursor..<tagEnd]
                 out += raw  // tags are always verbatim
-                let tag = parseTag(raw)
-                if let current = skipTag {
-                    if tag.name == current, !tag.isSelfClosing {
-                        skipDepth += tag.isClosing ? -1 : 1
-                        if skipDepth <= 0 { skipTag = nil; skipDepth = 0 }
+                if let tag = parseTag(raw) {
+                    if let current = skipTag {
+                        if tag.name == current, !tag.isSelfClosing {
+                            skipDepth += tag.isClosing ? -1 : 1
+                            if skipDepth <= 0 { skipTag = nil; skipDepth = 0 }
+                        }
+                    } else if !tag.isClosing, !tag.isSelfClosing, skipTags.contains(tag.name) {
+                        skipTag = tag.name
+                        skipDepth = 1
                     }
-                } else if !tag.isClosing, !tag.isSelfClosing, skipTags.contains(tag.name) {
-                    skipTag = tag.name
-                    skipDepth = 1
                 }
                 cursor = tagEnd
                 pendingStart = tagEnd
@@ -125,11 +126,12 @@ extension SmoothReading {
         }
     }
 
+    /// Only a `nil` class name omits the attribute; an empty string emits
+    /// `class=""`, exactly like the reference `openTag` in `html.ts` (which
+    /// tests `className === undefined`).
     private static func openTag(_ name: String, className: String?) -> String {
-        if let className, !className.isEmpty {
-            return "<\(name) class=\"\(escapeHtml(className))\">"
-        }
-        return "<\(name)>"
+        guard let className else { return "<\(name)>" }
+        return "<\(name) class=\"\(escapeHtml(className))\">"
     }
 
     /// Escapes the four characters the spec requires: `&`, `<`, `>`, `"`.
@@ -228,14 +230,70 @@ extension SmoothReading {
         return isAsciiDigit(byte) || (lower >= UInt8(ascii: "a") && lower <= UInt8(ascii: "f"))
     }
 
-    private static func parseTag(_ raw: Substring) -> (name: String, isClosing: Bool, isSelfClosing: Bool) {
-        var body = raw.dropFirst()  // "<"
-        if body.hasSuffix(">") { body = body.dropLast() }
-        let isSelfClosing = body.hasSuffix("/")
-        if isSelfClosing { body = body.dropLast() }
-        let isClosing = body.hasPrefix("/")
-        if isClosing { body = body.dropFirst() }
-        let name = body.prefix { $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_" }
-        return (name.lowercased(), isClosing, isSelfClosing)
+    /// Splits a raw tag into its lowercased name, and whether it is a closing
+    /// or a self-closing tag. Returns `nil` when the markup has no tag name at
+    /// all (a comment, a CDATA section, `<!DOCTYPE …>`, `<?php … ?>`), in which
+    /// case the caller leaves the skip state untouched.
+    ///
+    /// This reproduces `TAG_NAME_RE` (`/^<\s*(\/?)\s*([a-zA-Z][^\s/>]*)/`) and
+    /// the `/\/\s*>$/` self-closing test from the reference `consumeTag` in
+    /// `html.ts`:
+    ///
+    /// - the name starts with an ASCII letter and runs to the first whitespace,
+    ///   `/` or `>` — so `<code.x>` is the element `code.x`, which is *not* the
+    ///   skip tag `code`;
+    /// - whitespace may follow the `/` of a closing tag, so `</ code>` closes
+    ///   `code`;
+    /// - whitespace may precede the `>` of a self-closing tag, so `<code / >`
+    ///   opens nothing.
+    private static func parseTag(_ raw: Substring) -> (name: String, isClosing: Bool, isSelfClosing: Bool)? {
+        var index = raw.index(after: raw.startIndex)  // past "<"
+        func skipWhitespace() {
+            while index < raw.endIndex, isMarkupWhitespace(raw[index]) { index = raw.index(after: index) }
+        }
+        skipWhitespace()
+        var isClosing = false
+        if index < raw.endIndex, raw[index] == "/" {
+            isClosing = true
+            index = raw.index(after: index)
+        }
+        skipWhitespace()
+        guard index < raw.endIndex, let byte = raw[index].asciiValue, isAsciiLetter(byte) else {
+            return nil
+        }
+        let nameStart = index
+        index = raw.index(after: index)
+        while index < raw.endIndex, raw[index] != "/", raw[index] != ">",
+            !isMarkupWhitespace(raw[index])
+        {
+            index = raw.index(after: index)
+        }
+        return (raw[nameStart..<index].lowercased(), isClosing, isSelfClosing(raw))
+    }
+
+    /// `/\/\s*>$/`: a `/` followed by optional whitespace and the final `>`.
+    private static func isSelfClosing(_ raw: Substring) -> Bool {
+        guard raw.last == ">" else { return false }
+        var index = raw.index(before: raw.endIndex)
+        while index > raw.startIndex {
+            let previous = raw.index(before: index)
+            guard isMarkupWhitespace(raw[previous]) else { return raw[previous] == "/" }
+            index = previous
+        }
+        return false
+    }
+
+    /// JavaScript's `\s`, so the tag grammar above matches the reference
+    /// regexes character for character.
+    private static func isMarkupWhitespace(_ character: Character) -> Bool {
+        character.unicodeScalars.allSatisfy { scalar in
+            switch scalar.value {
+            case 0x09...0x0d, 0x20, 0xa0, 0x1680, 0x2000...0x200a, 0x2028, 0x2029, 0x202f, 0x205f,
+                0x3000, 0xfeff:
+                return true
+            default:
+                return false
+            }
+        }
     }
 }

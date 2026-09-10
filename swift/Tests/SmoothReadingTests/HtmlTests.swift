@@ -38,6 +38,24 @@ final class HtmlTests: XCTestCase {
             "a to the <b>re</b>ad")
     }
 
+    /// SPEC §4 guarantee 2: out-of-range values are clamped, never rejected and
+    /// never replaced by the default. The fixture harness feeds raw JSON values
+    /// straight through, so these are exactly the values a fixture may carry.
+    func testOutOfRangeOptionsAreClamped() {
+        func html(_ text: String, _ options: SmoothOptions) -> String {
+            SmoothReading.html(text, options: HtmlOptions(options: options))
+        }
+        XCTAssertEqual(html("hello", SmoothOptions(fixation: 99)), "<b>hell</b>o")  // == 5
+        XCTAssertEqual(html("hello", SmoothOptions(fixation: 5)), "<b>hell</b>o")
+        XCTAssertEqual(html("hello", SmoothOptions(fixation: 0)), "<b>h</b>ello")  // == 1
+        XCTAssertEqual(html("hello", SmoothOptions(fixation: 1)), "<b>h</b>ello")
+        XCTAssertEqual(html("hello world", SmoothOptions(saccade: 0)), "<b>hel</b>lo <b>wor</b>ld")  // == 1
+        XCTAssertEqual(html("hello world", SmoothOptions(saccade: -3)), "<b>hel</b>lo <b>wor</b>ld")
+        // `minWordLength` below zero suppresses nothing, exactly like `0`.
+        XCTAssertEqual(html("hello a", SmoothOptions(minWordLength: -1)), "<b>hel</b>lo <b>a</b>")
+        XCTAssertEqual(html("hello a", SmoothOptions(minWordLength: 0)), "<b>hel</b>lo <b>a</b>")
+    }
+
     func testNumbers() {
         XCTAssertEqual(SmoothReading.html("2024 was fine"), "2024 <b>wa</b>s <b>fi</b>ne")
         XCTAssertEqual(

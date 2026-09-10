@@ -140,3 +140,61 @@ def test_out_of_range_keyword_value_is_clamped() -> None:
     # saccade 0 clamps to 1: every word is emphasised, exactly as with saccade=1.
     assert tokenize("hi there", saccade=0) == tokenize("hi there", saccade=1)
     assert tokenize("hi there", fixation=7) == tokenize("hi there", fixation=5)
+
+
+# --- no-space-script run rule (docs/SPEC.md section 3) ---------------------
+
+
+def word_texts(text: str, **options: Any) -> list[str]:
+    return [token.text for token in words(text, **options)]
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("iPhone手机", ["iPhone", "手机"]),
+        ("abcก", ["abc", "ก"]),
+        ("日本語OKです", ["日本語", "OK", "です"]),
+        ("abc한글", ["abc", "한글"]),
+        ("2024年", ["2024", "年"]),
+        ("USB线", ["USB", "线"]),
+    ],
+)
+def test_a_run_splits_from_letters_and_digits_of_other_scripts(
+    text: str, expected: list[str]
+) -> None:
+    assert word_texts(text) == expected
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("iPhone手机很好用", ["iPhone", "手机很好用"]),
+        ("ภาษาไทยง่าย", ["ภาษาไทยง่าย"]),  # Thai
+        ("ພາສາລາວ", ["ພາສາລາວ"]),  # Lao
+        ("မြန်မာ", ["မြန်မာ"]),  # Myanmar
+        ("ខ្ញុំ", ["ខ្ញុំ"]),  # Khmer
+    ],
+)
+def test_one_word_per_continuous_run(text: str, expected: list[str]) -> None:
+    assert word_texts(text) == expected
+
+
+def test_combining_marks_follow_the_run_character_they_attach_to() -> None:
+    assert word_texts("我́x") == ["我́", "x"]
+    assert word_texts("我́") == ["我́"]
+    # A mark that follows no word character belongs to the separator (WB4).
+    assert word_texts("abcั") == ["abc"]
+
+
+def test_an_apostrophe_never_joins_a_run_to_an_ordinary_word() -> None:
+    assert word_texts("don't") == ["don't"]
+    assert word_texts("it'手机") == ["it", "手机"]
+    assert word_texts("手机'it") == ["手机", "it"]
+
+
+def test_only_run_table_characters_of_category_l_n_or_m_start_a_run() -> None:
+    # U+30FB Katakana middle dot is punctuation: a separator, not a run character.
+    assert word_texts("ア・イ") == ["ア", "イ"]
+    # U+3007 ideographic number zero is a letter, so it does form a run.
+    assert word_texts("\u3007\u3007") == ["\u3007\u3007"]

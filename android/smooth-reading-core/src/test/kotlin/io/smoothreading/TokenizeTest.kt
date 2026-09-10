@@ -40,6 +40,47 @@ class TokenizeTest {
     }
 
     @Test
+    fun `a no-space-script run splits from the letters and digits around it`() {
+        // One word per continuous run, never merged with an adjacent script.
+        assertEquals(listOf("iPhone", "手机"), words("iPhone手机"))
+        assertEquals(listOf("手机", "iPhone"), words("手机iPhone"))
+        assertEquals(listOf("abc", "ก"), words("abcก"))
+        assertEquals(listOf("ก", "abc"), words("กabc"))
+        assertEquals(listOf("2024", "年"), words("2024年"))
+        // Thai, Lao, Myanmar, Khmer and Hangul are no-space scripts too.
+        assertEquals(listOf("ภาษาไทย", "abc"), words("ภาษาไทยabc"))
+        assertEquals(listOf("ລາວ", "abc"), words("ລາວabc"))
+        assertEquals(listOf("မြန်မာ", "abc"), words("မြန်မာabc"))
+        assertEquals(listOf("ខ្មែរ", "abc"), words("ខ្មែរabc"))
+        assertEquals(listOf("한국어", "abc"), words("한국어abc"))
+        // Two no-space scripts next to each other are still one run.
+        assertEquals(listOf("ก我"), words("ก我"))
+    }
+
+    @Test
+    fun `a combining mark after a run character stays in the run`() {
+        val marked = "我́"
+        assertEquals(listOf(marked), words(marked))
+        assertEquals(marked, SmoothReading.tokenize(marked).single().text)
+        // A mark that follows a separator still belongs to the separator
+        // (UAX #29 WB4): the emoji's variation selector is not a word.
+        assertEquals(listOf("hi"), words("hi ❤️"))
+    }
+
+    @Test
+    fun `run characters that are not letters, numbers or marks are separators`() {
+        // U+30FB KATAKANA MIDDLE DOT sits inside the Katakana range but is
+        // punctuation, so it separates two runs instead of joining them.
+        assertEquals(listOf("ア", "イ"), words("ア・イ"))
+    }
+
+    @Test
+    fun `an apostrophe never joins across a run boundary`() {
+        assertEquals(listOf("it", "手机"), words("it'手机"))
+        assertEquals(listOf("手机", "it"), words("手机'it"))
+    }
+
+    @Test
     fun `saccade counts every word including numbers`() {
         val options = SmoothOptions(saccade = 2)
         val emphasised = SmoothReading.tokenize("one two three four", options)

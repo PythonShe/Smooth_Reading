@@ -167,8 +167,8 @@ final class LanguagesTests: XCTestCase {
 
     // MARK: - Tokenizer details the fixtures rely on
 
-    /// `enumerateSubstrings(.byWords)` reports the space between a Latin brand
-    /// name and digits inside Chinese text as a "word"; it must be a separator.
+    /// The ICU word breaker reports the space between a Latin brand name and
+    /// digits inside Chinese text as a "word"; it must be a separator.
     func testSeparatorsReportedByTheWordEnumeratorAreNotWords() {
         XCTAssertEqual(
             SmoothReading.html("我用iPhone 15看视频"),
@@ -179,6 +179,29 @@ final class LanguagesTests: XCTestCase {
         for case let .word(text, _, _, _) in SmoothReading.tokenize("我用iPhone 15看视频") {
             XCTAssertFalse(text.allSatisfy(\.isWhitespace), "whitespace token \(text.debugDescription) is not a word")
         }
+    }
+
+    /// ICU reports UTF-16 offsets and splits `我́` (U+6211 U+0301) into the token
+    /// `我` plus a token for the combining mark. SPEC §3 works in grapheme
+    /// clusters, so the word must come back out whole — never dropped, never
+    /// split between the base and its mark.
+    func testTokenRangesAreWidenedToGraphemeClusters() {
+        XCTAssertEqual(SmoothReading.html("我́x"), "<b>我́</b><b>x</b>")
+        XCTAssertEqual(SmoothReading.tokenize("我́x").map(\.text).joined(), "我́x")
+        let words = SmoothReading.tokenize("我́x").compactMap { token -> String? in
+            if case let .word(text, _, _, _) = token { return text }
+            return nil
+        }
+        XCTAssertEqual(words, ["我́", "x"])
+        // Emoji sequences stay separators: a variation selector or ZWJ never
+        // turns a symbol cluster into a word.
+        XCTAssertEqual(SmoothReading.html("hello ❤️ world"), "<b>hel</b>lo ❤️ <b>wor</b>ld")
+        XCTAssertEqual(SmoothReading.html("🇯🇵 flag"), "🇯🇵 <b>fl</b>ag")
+        // A keycap is one grapheme cluster starting with a digit, so it is a
+        // one-character word. It is not "entirely digits" (the variation
+        // selector and U+20E3 are not `\p{Nd}`), so §2 rule 1 does not suppress
+        // it — the same as the reference implementation.
+        XCTAssertEqual(SmoothReading.html("1️⃣ x"), "<b>1️⃣</b> <b>x</b>")
     }
 
     func testDecomposedHangulJamoAndIndicConjunctsAreSingleClusters() {

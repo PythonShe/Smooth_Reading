@@ -27,7 +27,7 @@ Or add it to your `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/PythonShe/Smooth_Reading.git", from: "0.1.0-rc.2")
+    .package(url: "https://github.com/PythonShe/Smooth_Reading.git", from: "0.2.0")
 ],
 targets: [
     .target(name: "MyApp", dependencies: [
@@ -194,7 +194,7 @@ Styling classes match `packages/core/styles.css`. Emphasis remains purely presen
 | `saccade` | `Int` (≥ 1) | `1` | Emphasises every *n*-th word (`1` = every word, `2` = every second word). Word tokens consume an index, including numbers and short words. Values `< 1` are clamped to `1`. |
 | `minWordLength` | `Int` | `1` | Words with fewer grapheme clusters receive no fixation. |
 | `emphasizeNumbers` | `Bool` | `false` | Whether words composed entirely of decimal digits are emphasised. |
-| `locale` | `Locale?` | `nil` | Locale used for word breaking. `nil` defaults to `String.enumerateSubstrings(.byWords)`; specifying a locale activates `CFStringTokenizer`, which provides dictionary breaking for Chinese, Japanese, and Thai. |
+| `locale` | `Locale?` | `nil` | Locale handed to the ICU word breaker (`CFStringTokenizer`), which provides dictionary breaking for Chinese, Japanese, Thai, Lao, Khmer and Burmese. `nil` auto-detects the language of the text, so dictionary breaking is on by default; pass a locale to pin it. |
 | `fixationLength` | `(@Sendable (String, Int, SmoothOptions) -> Int)?` | `nil` | Closure replacing the fixation algorithm entirely. Receives the word, its grapheme count, and options; result is clamped to `0…n`. |
 
 ### HTML options (`HtmlOptions`)
@@ -214,7 +214,9 @@ Styling classes match `packages/core/styles.css`. Emphasis remains purely presen
 
 ## Word breaking & Multilingual support
 
-Word boundaries are derived from ICU via `String.enumerateSubstrings(in:options: .byWords)`, or `CFStringTokenizer` when a custom `locale` is provided. Contractions join (`don't` is one word), hyphens split (`well-known` is two words), and scripts without spaces (CJK and Thai) receive dictionary-based segmentation.
+Word boundaries are derived from ICU via `CFStringTokenizer` (`kCFStringTokenizerUnitWordBoundary`). Contractions join (`don't` is one word), hyphens split (`well-known` is two words), and scripts without spaces (Chinese, Japanese, Thai, Lao, Khmer, Burmese) receive dictionary-based segmentation.
+
+When `locale` is `nil` the language is auto-detected with `CFStringTokenizerCopyBestStringLanguage` and only its **language subtag** is used. Dictionary breaking is therefore the default, not an opt-in: `SmoothReading.html("你好，世界！")` yields `<b>你</b>好，<b>世</b>界！`, the same as passing `Locale(identifier: "zh")`. The script and region subtags of a *guess* are dropped on purpose — Han characters shared by both Chinese scripts are often reported as `zh-Hant`, whose break engine splits common words such as `你好`. Text with no detectable language (digits, punctuation, a single letter) falls back to `Locale.current`; word breaking for Latin text is the same either way.
 
 Grapheme clusters are counted natively using Swift's standard library (`String.count`), adhering to Unicode UAX #29 extended grapheme cluster rules:
 - Combining marks and diacritics never split from their base letters.
@@ -223,7 +225,7 @@ Grapheme clusters are counted natively using Swift's standard library (`String.c
 
 ### Script recommendations
 
-- **Traditional Chinese with locale**: When passing an explicit locale to `CFStringTokenizer`, use `Locale(identifier: "zh-Hant")` (or `nil`). Standard `zh` may separate multi-character words like `我們` and `學習`.
+- **Traditional Chinese**: pass `Locale(identifier: "zh-Hant")` explicitly. Auto-detection keeps the language subtag only, so it resolves to `zh`, whose Simplified dictionary separates multi-character words like `我們` and `學習`. An explicit locale is never overridden.
 - **Typographic considerations for Arabic and Indic scripts**: Because many fonts lack distinct bold faces or blur ligatures under bold weights, pass custom color or underline attributes via `fixationAttributes`:
 
   ```swift

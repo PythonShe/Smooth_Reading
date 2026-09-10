@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 from typing import Any
@@ -10,9 +11,22 @@ from typing import Any
 _RATIOS: dict[int, float] = {1: 0.20, 2: 0.35, 3: 0.50, 4: 0.65, 5: 0.80}
 
 
-def _is_int(value: object) -> bool:
+def _is_number(value: object) -> bool:
     # ``bool`` is a subclass of ``int``; ``saccade=True`` is a bug, not a 1.
-    return isinstance(value, int) and not isinstance(value, bool)
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def _truncate(value: object, non_finite: int) -> int | None:
+    """Truncate a number toward zero, like TypeScript's ``Math.trunc``.
+
+    Returns ``None`` for anything that is not a number (or is a ``bool``), so the
+    caller can raise; ``fixation=4.9`` is a ``4`` to be clamped, not an error, and
+    a non-finite value falls back to ``non_finite`` exactly as in the core.
+    """
+    if not _is_number(value):
+        return None
+    number = float(value)  # type: ignore[arg-type]
+    return non_finite if not math.isfinite(number) else math.trunc(number)
 
 
 @dataclass(frozen=True)
@@ -32,18 +46,23 @@ class Options:
     fixation_length: Callable[[str, int, Options], int] | None = None
 
     def __post_init__(self) -> None:
-        # Wrong types are rejected; out-of-range values are clamped into range
-        # (spec section 4), matching every other port.
-        if not _is_int(self.fixation):
+        # Wrong types are rejected; numbers are truncated toward zero (like the
+        # core's ``Math.trunc``) and then clamped into range (spec section 4),
+        # so ``fixation=4.9`` is a 4 and ``min_word_length=-1`` behaves like 0.
+        fixation = _truncate(self.fixation, 3)
+        if fixation is None:
             raise ValueError(f"fixation must be an integer from 1 to 5, got {self.fixation!r}")
-        if not _is_int(self.saccade):
+        saccade = _truncate(self.saccade, 1)
+        if saccade is None:
             raise ValueError(f"saccade must be an integer >= 1, got {self.saccade!r}")
-        object.__setattr__(self, "fixation", min(max(self.fixation, 1), 5))
-        object.__setattr__(self, "saccade", max(self.saccade, 1))
-        if not _is_int(self.min_word_length) or self.min_word_length < 0:
+        min_word_length = _truncate(self.min_word_length, 0)
+        if min_word_length is None:
             raise ValueError(
                 f"min_word_length must be an integer >= 0, got {self.min_word_length!r}"
             )
+        object.__setattr__(self, "fixation", min(max(fixation, 1), 5))
+        object.__setattr__(self, "saccade", max(saccade, 1))
+        object.__setattr__(self, "min_word_length", max(min_word_length, 0))
         if self.fixation_length is not None and not callable(self.fixation_length):
             raise ValueError(
                 f"fixation_length must be callable or None, got {self.fixation_length!r}"

@@ -93,6 +93,47 @@ class HtmlMarkupTest {
     }
 
     @Test
+    fun `a CDATA section may contain a bare greater-than`() {
+        assertEquals("<b>x</b> <![CDATA[ a > b ]]> <b>y</b>", html("x <![CDATA[ a > b ]]> y"))
+        assertEquals("<code><![CDATA[ x ]]></code> <b>y</b>", html("<code><![CDATA[ x ]]></code> y"))
+        // Unterminated: it falls back to the generic `<!...>` declaration rule
+        // and ends at the first `>`.
+        assertEquals("<b>x</b> <![CDATA[ a > <b>b</b> ]] &gt; <b>y</b>", html("x <![CDATA[ a > b ]] > y"))
+        // No `>` at all: not markup, so it is text.
+        assertEquals("<b>a</b> &lt;![<b>CDA</b>TA[ <b>x</b> ]]", html("a <![CDATA[ x ]]"))
+    }
+
+    @Test
+    fun `an unterminated comment falls back to the declaration rule`() {
+        assertEquals("<b>a</b> <!-- b > <b>c</b>", html("a <!-- b > c"))
+        assertEquals("<!--><b>a</b>&gt; <b>b</b>", html("<!-->a> b"))
+        // With no `>` anywhere it stays text.
+        assertEquals("<b>a</b> &lt;!-- <b>b</b>", html("a <!-- b"))
+    }
+
+    @Test
+    fun `a tag name runs until whitespace, a slash or a greater-than`() {
+        // `code.x` is a tag name of its own, not the skip tag `code`.
+        assertEquals("<code.x><b>hel</b>lo</code.x>", html("<code.x>hello</code.x>"))
+        assertEquals("<CODE.X><b>hel</b>lo</CODE.X>", html("<CODE.X>hello</CODE.X>"))
+        // Whitespace after the slash of a closing tag is allowed.
+        assertEquals("<code>hidden</ code> <b>sho</b>wn", html("<code>hidden</ code> shown"))
+        assertEquals("<code>hidden</\tcode> <b>sho</b>wn", html("<code>hidden</\tcode> shown"))
+        // A space before the closing slash still counts as self-closing.
+        assertEquals("<code / > <b>hel</b>lo</code> <b>ta</b>il", html("<code / > hello</code> tail"))
+        assertEquals("<code/ > <b>hel</b>lo</code> <b>ta</b>il", html("<code/ > hello</code> tail"))
+        // Non-ASCII whitespace ends a tag name too, exactly as in the
+        // TypeScript core (JavaScript's `\s`).
+        assertEquals("<code\u00a0>hidden</code> <b>sho</b>wn", html("<code\u00a0>hidden</code> shown"))
+        assertEquals("<code\u3000>hidden</code> <b>sho</b>wn", html("<code\u3000>hidden</code> shown"))
+        assertEquals("<code\ufeff>hidden</code> <b>sho</b>wn", html("<code\ufeff>hidden</code> shown"))
+        assertEquals("<code>hidden</\u00a0code> <b>sho</b>wn", html("<code>hidden</\u00a0code> shown"))
+        assertEquals("<code /\u00a0><b>hid</b>den</code> <b>sho</b>wn", html("<code /\u00a0>hidden</code> shown"))
+        // `<` followed by whitespace is not markup at all.
+        assertEquals("&lt; <b>co</b>de&gt;<b>hel</b>lo</code>", html("< code>hello</code>"))
+    }
+
+    @Test
     fun `tags with attributes are verbatim, ampersands included`() {
         assertEquals(
             "<a href=\"x?a=1&b=2\" title=\"a<b\"><b>g</b>o</a>",

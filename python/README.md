@@ -145,13 +145,13 @@ smooth-reading --tag span --class sr-fixation article.txt
 
 `tokenize`, `to_html`, and `to_markdown` accept algorithm options as keyword arguments, as an `Options` instance (`to_html(text, Options(fixation=4))`), or both (keywords override instance fields).
 
-Out-of-range `fixation` (outside 1–5) and `saccade` (< 1) values are automatically clamped into valid ranges.
+Out-of-range `fixation` (outside 1–5), `saccade` (< 1) and `min_word_length` (< 0) values are automatically clamped into valid ranges. A numeric value that is not an integer is **truncated toward zero first** and then clamped — `fixation=4.9` is a strength of `4`, exactly as `Math.trunc` does in the TypeScript core — and a non-finite value (`nan`, `inf`) falls back to the default. Values of the wrong *type* (a `str`, a `bool`) still raise `ValueError`.
 
 | Option | Type | Default | Description |
 | --- | --- | --- | --- |
-| `fixation` | `1..5` | `3` | Ratio of word emphasised: `0.20, 0.35, 0.50, 0.65, 0.80`. Out-of-range values are clamped. |
-| `saccade` | `int >= 1` | `1` | Saccade interval: emphasise every *N*-th word. Values `< 1` are clamped to `1`. |
-| `min_word_length` | `int >= 0` | `1` | Words shorter than this get no fixation. |
+| `fixation` | `1..5` | `3` | Ratio of word emphasised: `0.20, 0.35, 0.50, 0.65, 0.80`. Non-integers truncated, out-of-range values clamped. |
+| `saccade` | `int >= 1` | `1` | Saccade interval: emphasise every *N*-th word. Non-integers truncated, values `< 1` clamped to `1`. |
+| `min_word_length` | `int >= 0` | `1` | Words shorter than this get no fixation. Non-integers truncated, negative values behave like `0`. |
 | `emphasize_numbers` | `bool` | `False` | Whether to emphasise words consisting solely of digits. |
 | `locale` | `str \| None` | `None` | BCP-47 tag, accepted for parity across ports (unused by regex scanner). |
 | `fixation_length` | `Callable` | `None` | Custom callback `(word, graphemes, options) -> int` replacing the fixation calculation. |
@@ -195,7 +195,26 @@ Python's built-in `re` module does not support Unicode `\p{...}` properties and 
 
 All space-separated scripts (Latin, Greek, Cyrillic, Korean, Vietnamese, Indic scripts, Arabic, Hebrew, Persian, Urdu) render byte-identically to ICU-backed ports (`fixtures/common/scripts.json`).
 
-For scripts without spaces (Chinese, Japanese, Thai, Lao, Khmer, Burmese), the package applies a predictable run rule: each unbroken run of ideographs or syllables is treated as a single word (`我喜欢阅读` → `<b>我喜欢</b>阅读`). This avoids third-party C/ICU dependencies while ensuring deterministic execution.
+For scripts without spaces (Chinese, Japanese, Korean without spaces, Thai, Lao, Burmese, Khmer), the package applies a predictable **continuous run rule**: each unbroken run of such characters is one word (`我喜欢阅读` → `<b>我喜欢</b>阅读`). A run is split from the adjacent letters and digits of every other script, and combining marks following a run character stay attached to the run:
+
+```python
+to_html("iPhone手机")  # '<b>iPh</b>one<b>手</b>机'   -- two words
+to_html("日本語OKです")  # '<b>日本</b>語<b>O</b>K<b>で</b>す' -- three words
+```
+
+The exact code-point table (and the requirement that a character's general category be `L`, `N` or `M`) is in [SPEC §3](../docs/SPEC.md#3-tokenizer--word-boundary-specification); `smooth_reading.tokenizer` mirrors it in `_CJK_RANGES`. This avoids third-party C/ICU dependencies while ensuring deterministic execution.
+
+Because there is no dictionary, the run rule is a *documented degradation*, not a match for ICU: `手机很好用` stays one word where ICU would find three, and `3.14`, `1,000`, `snake_case`, `½` and `X'0` also segment differently. SPEC §3 lists each accepted difference; `fixtures/common/` contains only inputs on which every port agrees.
+
+### HTML lexing
+
+`to_html` uses the same markup grammar as the TypeScript core (SPEC §4.6): a tag name begins at the first ASCII letter (after an optional `/`, which may be followed by whitespace) and runs until whitespace, `/` or `>`. So `<code.x>` is named `code.x` and is *not* the `code` skip tag, `</ code>` closes a `code` element, and `<code / >` is self-closing and never opens one.
+
+```python
+to_html("<code.x>hello</code.x>")  # '<code.x><b>hel</b>lo</code.x>'
+to_html("<code>a</ code>b")  # '<code>a</ code><b>b</b>'
+to_html("<code / >hello</code>")  # '<code / ><b>hel</b>lo</code>'
+```
 
 For detailed cross-platform comparisons, see [`docs/LANGUAGES.md`](../docs/LANGUAGES.md).
 

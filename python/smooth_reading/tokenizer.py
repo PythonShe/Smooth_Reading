@@ -4,7 +4,8 @@ Python's :mod:`re` has no ``\\p{...}`` property escapes (and ``\\w`` matches
 ``_``), so the spec regex ``[\\p{L}\\p{N}][\\p{L}\\p{N}\\p{M}]*(?:['’][\\p{L}\\p{N}\\p{M}]+)*``
 is implemented as a hand-written scanner over :func:`unicodedata.category`.
 It yields exactly the tokens the regex would, plus the spec's extra rule that a
-run of CJK characters (Han, Hiragana, Katakana, Hangul) is a word of its own.
+continuous run of no-space-script characters (Han, Hiragana, Katakana, Hangul,
+Thai, Lao, Myanmar, Khmer) is a word of its own.
 """
 
 from __future__ import annotations
@@ -15,10 +16,15 @@ from collections.abc import Iterator
 #: Characters that join two word runs into one word (``don't``, ``it’s``).
 _APOSTROPHES = frozenset("'’")
 
-# Inclusive code-point ranges of the CJK scripts written without spaces, in
-# ascending order (``is_cjk`` relies on it).
+# Inclusive code-point ranges of the scripts written without spaces, in
+# ascending order (``is_cjk`` relies on it). Mirrors the no-space-script table
+# of docs/SPEC.md section 3 and ``RUN_RANGES`` in the TypeScript core.
 _CJK_RANGES: tuple[tuple[int, int], ...] = (
+    (0x0E00, 0x0E7F),  # Thai
+    (0x0E80, 0x0EFF),  # Lao
+    (0x1000, 0x109F),  # Myanmar
     (0x1100, 0x11FF),  # Hangul Jamo
+    (0x1780, 0x17FF),  # Khmer
     (0x3005, 0x3007),  # ideographic iteration mark, ideographic zero
     (0x3041, 0x30FF),  # Hiragana, Katakana
     (0x3130, 0x318F),  # Hangul Compatibility Jamo
@@ -26,6 +32,8 @@ _CJK_RANGES: tuple[tuple[int, int], ...] = (
     (0x3400, 0x4DBF),  # CJK Extension A
     (0x4E00, 0x9FFF),  # CJK Unified Ideographs
     (0xA960, 0xA97F),  # Hangul Jamo Extended-A
+    (0xA9E0, 0xA9FF),  # Myanmar Extended-B
+    (0xAA60, 0xAA7F),  # Myanmar Extended-A
     (0xAC00, 0xD7A3),  # Hangul Syllables
     (0xD7B0, 0xD7FF),  # Hangul Jamo Extended-B
     (0xF900, 0xFAFF),  # CJK Compatibility Ideographs
@@ -43,7 +51,7 @@ def is_word_char(char: str) -> bool:
 
 
 def is_cjk(char: str) -> bool:
-    """True for Han, Hiragana, Katakana and Hangul word characters."""
+    """True for a no-space-script word character (Han, Kana, Hangul, Thai, …)."""
     if not is_word_char(char):
         return False  # e.g. the Katakana middle dot U+30FB is punctuation
     code = ord(char)
@@ -80,14 +88,18 @@ def iter_raw_tokens(text: str) -> Iterator[tuple[bool, str]]:
                 index += 1
             yield False, text[start:index]
         elif is_cjk(text[index]):
-            # CJK run: one word per run; combining marks stay attached.
+            # No-space-script run: one word per continuous run, split from the
+            # letters and digits of other scripts (``iPhone手机`` is two words);
+            # combining marks following a run character stay attached.
             while index < length and (is_cjk(text[index]) or _is_mark(text[index])):
                 index += 1
             yield True, text[start:index]
         else:
             # Ordinary word: word characters, optionally joined by apostrophes.
-            # ``[\p{L}\p{N}\p{M}]+(?:['’][\p{L}\p{N}\p{M}]+)*`` -- a CJK
-            # character ends the run because it starts a word of its own.
+            # ``[\p{L}\p{N}\p{M}]+(?:['’][\p{L}\p{N}\p{M}]+)*`` restricted to
+            # non-run characters: a no-space-script character ends the word
+            # because it starts a run of its own, and an apostrophe joins only
+            # when the next character is a non-run word character.
             while True:
                 while index < length and is_word_char(text[index]) and not is_cjk(text[index]):
                     index += 1

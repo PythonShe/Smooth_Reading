@@ -196,3 +196,32 @@ def test_markdown_output() -> None:
 
 def test_markdown_does_not_escape() -> None:
     assert to_markdown("a < b & c") == "**a** < **b** & **c**"
+
+
+# --- tag-name grammar (matches the core's markup lexer) --------------------
+
+
+def test_a_tag_name_runs_until_whitespace_slash_or_gt() -> None:
+    # <code.x> is named "code.x", so it is not the skip tag "code".
+    assert to_html("<code.x>hello</code.x>") == "<code.x><b>hel</b>lo</code.x>"
+
+
+def test_a_space_after_the_slash_still_closes_a_tag() -> None:
+    assert to_html("<code>a</ code>b") == "<code>a</ code><b>b</b>"
+
+
+def test_a_spaced_self_closing_tag_does_not_open_a_skip() -> None:
+    assert to_html("<code / >hello</code>") == "<code / ><b>hel</b>lo</code>"
+    assert to_html("<code/ >hello</code>") == "<code/ ><b>hel</b>lo</code>"
+
+
+def test_a_cdata_section_passes_through_with_its_bare_angle_bracket() -> None:
+    assert to_html("x <![CDATA[ a > b ]]> y") == "<b>x</b> <![CDATA[ a > b ]]> <b>y</b>"
+
+
+def test_an_unterminated_comment_ends_at_the_first_gt() -> None:
+    assert to_html("a <!-- b > c") == "<b>a</b> <!-- b > <b>c</b>"
+
+
+def test_markup_without_a_tag_name_still_passes_through_verbatim() -> None:
+    assert to_html("a </> b") == "<b>a</b> </> <b>b</b>"

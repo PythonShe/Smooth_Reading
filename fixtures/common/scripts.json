@@ -268,5 +268,29 @@
       "fixation": 5
     },
     "html": "<b>मैं</b> <b>हिंदी</b> <b>समाचा</b>र <b>पढ़</b>ता <b>हूँ</b>"
+  },
+  {
+    "name": "run rule: a Han run splits from the Latin letters before it",
+    "input": "iPhone手机",
+    "options": {},
+    "html": "<b>iPh</b>one<b>手</b>机"
+  },
+  {
+    "name": "run rule: a Hangul run splits from the Latin letters before it",
+    "input": "abc한글",
+    "options": {},
+    "html": "<b>ab</b>c<b>한</b>글"
+  },
+  {
+    "name": "run rule: an unbroken Hangul run is one word, the Latin before it another",
+    "input": "OK한국어문장",
+    "options": {},
+    "html": "<b>O</b>K<b>한국어</b>문장"
+  },
+  {
+    "name": "run rule: a combining mark stays attached to the run character it follows",
+    "input": "我́x",
+    "options": {},
+    "html": "<b>我́</b><b>x</b>"
   }
 ]

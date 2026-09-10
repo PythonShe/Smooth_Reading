@@ -2,29 +2,57 @@ import Foundation
 
 /// ICU-backed word segmentation.
 ///
-/// Primary implementation: `String.enumerateSubstrings(in:options: .byWords)`,
-/// which uses ICU's default word-break rules — apostrophes join (`don't` is one
-/// word), hyphens split (`well-known` is two), and CJK/Thai get dictionary-based
-/// breaks. This matches `docs/SPEC.md` §3.
+/// Every path goes through `CFStringTokenizer` with
+/// `kCFStringTokenizerUnitWordBoundary`, the only Foundation word breaker that
+/// accepts an explicit locale and therefore the only one that reliably selects
+/// ICU's *dictionary* break engines for the scripts that do not use spaces
+/// (Chinese, Japanese, Thai, Lao, Khmer, Burmese). This matches `docs/SPEC.md`
+/// §3 and keeps the Swift port byte-identical with the TypeScript, Kotlin and
+/// Python ports.
 ///
-/// When ``SmoothOptions/locale`` is set, `CFStringTokenizer` is used instead
-/// because it is the only Foundation word breaker that accepts an explicit
-/// locale; it produces the same word boundaries for every `common` fixture.
+/// `String.enumerateSubstrings(in:options: .byWords)` is deliberately *not*
+/// used: it applies plain UAX #29 word-break rules with no dictionary, so
+/// `你好，世界！` came out as `你`/`好`/`世界` instead of `你好`/`世界` and
+/// `日本語OKです` as `日`/`本`/`語` instead of `日本`/`語`.
+///
+/// When ``SmoothOptions/locale`` is `nil` the language is auto-detected (see
+/// ``detectedLocale(for:range:)``) rather than defaulting to a locale with no
+/// dictionary, because dictionary-based CJK breaking is the default behaviour
+/// this library promises.
 enum Tokenizer {
     /// Ranges of the word-like segments of `text[range]`, in order.
     static func wordRanges(in text: String, range: Range<String.Index>, locale: Locale?) -> [Range<String.Index>] {
-        if let locale {
-            return localeAwareWordRanges(in: text, range: range, locale: locale)
-        }
-        var ranges: [Range<String.Index>] = []
-        text.enumerateSubstrings(in: range, options: [.byWords]) { _, wordRange, _, _ in
-            // `.byWords` occasionally reports a bare separator as a word (a
-            // space between a Latin brand name and digits inside Chinese text,
-            // for example); the CFStringTokenizer path applies the same filter.
-            guard isWordLike(text[wordRange]) else { return }
-            ranges.append(wordRange)
-        }
-        return ranges
+        let resolved = locale ?? detectedLocale(for: text, range: range)
+        return localeAwareWordRanges(in: text, range: range, locale: resolved)
+    }
+
+    /// The locale used when the caller supplies none.
+    ///
+    /// `CFStringTokenizerCopyBestStringLanguage` identifies the dominant
+    /// language of the text, which is what selects the ICU dictionary engine.
+    /// Passing `nil` straight to `CFStringTokenizerCreate` is *not* equivalent:
+    /// it leaves Han text on the root break rules, so `你好，世界！` would split
+    /// into `你` + `好`.
+    ///
+    /// Only the **language subtag** of the detection is kept. Script and region
+    /// subtags guessed from the text itself are unreliable — Han characters
+    /// shared by both Chinese scripts are frequently reported as `zh-Hant`,
+    /// whose break engine splits common Simplified words (`你好` → `你` + `好`) —
+    /// while the language subtag alone (`zh`) selects the same dictionary every
+    /// other port uses. A caller that wants a specific variant passes an
+    /// explicit ``SmoothOptions/locale``, which is never overridden here.
+    ///
+    /// Text with no detectable language (digits, punctuation, a lone letter)
+    /// falls back to `Locale.current`.
+    static func detectedLocale(for text: String, range: Range<String.Index>) -> Locale {
+        let utf16Start = text.utf16.distance(from: text.startIndex, to: range.lowerBound)
+        let utf16Length = text.utf16.distance(from: range.lowerBound, to: range.upperBound)
+        guard
+            let detected = CFStringTokenizerCopyBestStringLanguage(
+                text as CFString, CFRangeMake(utf16Start, utf16Length)) as String?
+        else { return .current }
+        let language = detected.prefix { $0 != "-" && $0 != "_" }
+        return language.isEmpty ? .current : Locale(identifier: String(language))
     }
 
     private static func localeAwareWordRanges(
@@ -40,16 +68,48 @@ enum Tokenizer {
         while CFStringTokenizerAdvanceToNextToken(tokenizer) != [] {
             let cfRange = CFStringTokenizerGetCurrentTokenRange(tokenizer)
             guard cfRange.location != kCFNotFound, cfRange.length > 0 else { continue }
+            // ICU reports UTF-16 offsets and happily ends a token in the middle
+            // of a grapheme cluster: `我́` (U+6211 U+0301) comes back as the
+            // token `我` plus a separate token for the combining mark. SPEC §3
+            // works in grapheme clusters, so every range is widened to the
+            // clusters it touches, and a widened range that overlaps the word
+            // before it is merged into it instead of duplicating it.
             guard
-                let lower = text.utf16.index(
-                    text.startIndex, offsetBy: cfRange.location, limitedBy: text.endIndex),
-                let upper = text.utf16.index(lower, offsetBy: cfRange.length, limitedBy: text.endIndex),
-                let sLower = lower.samePosition(in: text), let sUpper = upper.samePosition(in: text)
+                let lower = snappedDown(in: text, utf16Offset: cfRange.location),
+                let upper = snappedUp(in: text, utf16Offset: cfRange.location + cfRange.length),
+                lower < upper, isWordLike(text[lower..<upper])
             else { continue }
-            let token = text[sLower..<sUpper]
-            if isWordLike(token) { ranges.append(sLower..<sUpper) }
+            if let last = ranges.last, lower < last.upperBound {
+                ranges[ranges.count - 1] = last.lowerBound..<max(last.upperBound, upper)
+            } else {
+                ranges.append(lower..<upper)
+            }
         }
         return ranges
+    }
+
+    /// The grapheme-cluster boundary at or before `utf16Offset`.
+    private static func snappedDown(in text: String, utf16Offset: Int) -> String.Index? {
+        var offset = utf16Offset
+        while offset >= 0 {
+            if let index = text.utf16.index(text.startIndex, offsetBy: offset, limitedBy: text.endIndex),
+                let snapped = index.samePosition(in: text)
+            {
+                return snapped
+            }
+            offset -= 1
+        }
+        return nil
+    }
+
+    /// The grapheme-cluster boundary at or after `utf16Offset`.
+    private static func snappedUp(in text: String, utf16Offset: Int) -> String.Index? {
+        var offset = utf16Offset
+        while let index = text.utf16.index(text.startIndex, offsetBy: offset, limitedBy: text.endIndex) {
+            if let snapped = index.samePosition(in: text) { return snapped }
+            offset += 1
+        }
+        return nil
     }
 
     /// A segment is word-like when it contains a letter or a number (`\p{L}`,

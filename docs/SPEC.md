@@ -4,7 +4,7 @@ Smooth Reading is an open-source (Apache-2.0) implementation of *guided fixation
 
 The technique is similar to commercial fixation-reading products, but this project is an independent, clean-room implementation.
 
-This specification is the canonical contract governing every port and package in the monorepo. The core algorithm is deterministic and language-agnostic so that all runtime implementations (TypeScript, Swift, Kotlin, Python) produce byte-identical output for shared test fixtures.
+This specification is the canonical contract governing every port and package in the monorepo. The core algorithm is deterministic and language-agnostic so that all runtime implementations (TypeScript, Swift, Kotlin, Python, Dart) produce byte-identical output for shared test fixtures.
 
 ---
 
@@ -81,6 +81,8 @@ Where available, implementations MUST use standard Unicode break iterators:
 
 Segments with `isWordLike === true` (or equivalent) are classified as words; all other segments are classified as separators. This provides dictionary-based word boundary detection for non-space scripts (Chinese, Japanese, Thai, Lao, Khmer, Burmese).
 
+A port whose runtime ships no break iterator MAY expose a hook so the host application can supply one (the Dart port exposes a `Segmenter` interface for exactly this). When a hook is supplied it takes the place of the fallback below; when it is not, the fallback is used.
+
 ### Fallback segmentation: Unicode regex scanner
 When a platform ICU engine is unavailable (e.g. Python standard library or environments lacking `Intl.Segmenter`), implementations MUST use the canonical regular expression:
 
@@ -90,7 +92,67 @@ When a platform ICU engine is unavailable (e.g. Python standard library or envir
 
 - Contractions with apostrophes (`'`, `’`) remain unified; hyphens split into distinct words.
 - A word **never** starts with a combining mark. Any combining mark or variation selector following a separator (such as U+FE0F in emoji sequences like `❤️`) remains attached to the separator (UAX #29 rule WB4).
-- Continuous runs of CJK ideographs (`\p{Script=Han}`, Hiragana, Katakana, Hangul) or Thai characters are treated as a single word per **continuous run**, and standard §2 fixation calculations apply to that run.
+
+#### The continuous run rule
+
+A **continuous run** of no-space-script characters is **one word per run**, split from the adjacent letters and digits of every other script.
+
+A character belongs to the **no-space-script table** when *both* hold:
+
+1. Its code point falls in one of these inclusive ranges, and
+2. its Unicode general category is `L`, `N` or `M`.
+
+| Range | Block |
+| --- | --- |
+| `0E00`–`0E7F` | Thai |
+| `0E80`–`0EFF` | Lao |
+| `1000`–`109F` | Myanmar |
+| `1100`–`11FF` | Hangul Jamo |
+| `1780`–`17FF` | Khmer |
+| `3005`–`3007` | Ideographic iteration marks, ideographic number zero |
+| `3041`–`30FF` | Hiragana, Katakana |
+| `3130`–`318F` | Hangul Compatibility Jamo |
+| `31F0`–`31FF` | Katakana Phonetic Extensions |
+| `3400`–`4DBF` | CJK Unified Ideographs Extension A |
+| `4E00`–`9FFF` | CJK Unified Ideographs |
+| `A960`–`A97F` | Hangul Jamo Extended-A |
+| `A9E0`–`A9FF` | Myanmar Extended-B |
+| `AA60`–`AA7F` | Myanmar Extended-A |
+| `AC00`–`D7A3` | Hangul Syllables |
+| `D7B0`–`D7FF` | Hangul Jamo Extended-B |
+| `F900`–`FAFF` | CJK Compatibility Ideographs |
+| `FF66`–`FF9D` | Halfwidth Katakana |
+| `FFA0`–`FFDC` | Halfwidth Hangul |
+| `20000`–`2EBEF` | CJK Unified Ideographs Extensions B–F |
+| `2F800`–`2FA1F` | CJK Compatibility Ideographs Supplement |
+| `30000`–`323AF` | CJK Unified Ideographs Extensions G–H |
+
+The category condition matters: the Katakana middle dot `・` (U+30FB, `Po`) lies inside `3041`–`30FF` but is punctuation, so it separates two runs rather than joining them.
+
+Scanning rules:
+
+- A run **opens** on a table character whose category is `L` or `N` (never `M`: a word never starts with a combining mark) and **continues** over further table characters and over **any** `\p{M}`, wherever that mark lives. So `我́` (U+6211 + U+0301) is one word.
+- The run ends at the first character that is neither a table character nor a mark. `iPhone手机` → `iPhone` + `手机`; `abcก` → `abc` + `ก`; `日本語OKです` → `日本語`, `OK`, `です`.
+- **Ordinary words** are the regular expression above with every character class restricted to *non-table* characters, so a table character always ends the ordinary word before it.
+- An apostrophe joins only when the character that follows it is a **non-table** word character: `don't` is one word, `it'手机` is `it` + `手机`.
+- §2 fixation calculations then apply to the run exactly as to any other word.
+
+#### Accepted differences between the ICU and fallback paths
+
+The fallback tokenizer is a **documented, predictable degradation**, not a bug: it approximates UAX #29 without dictionaries or the full break-rule table. The inputs below segment differently under the two paths and are therefore **intentionally absent from `fixtures/common/`**; the fixtures pin only inputs on which both paths agree.
+
+| Input | ICU (`Intl.Segmenter` & friends) | Regex fallback | Rule |
+| --- | --- | --- | --- |
+| `3.14` | one word `3.14` → `<b>3.</b>14` | `3` + `14`, both all-digit → `3.14` | WB11/WB12 (numeric with an inner separator) |
+| `1,000` | one word `1,000` → `<b>1,0</b>00` | `1` + `000` → `1,000` | WB11/WB12 |
+| `a_b`, `snake_case` | `_` is `ExtendNumLet`: one word → `<b>a_</b>b` | `_` is punctuation: `a` + `b` → `<b>a</b>_<b>b</b>` | WB13a/WB13b |
+| `½` | not word-like: a separator → `½` | `\p{No}` is a word character → `<b>½</b>` | ICU word-like classification |
+| `X'0` | `X` then `'0` → `<b>X</b>'0` | the apostrophe joins → `<b>X'</b>0` | WB6/WB7 require letters on both sides |
+| `ខ្ញុំ` (Khmer coeng) | 1 grapheme cluster in ICU ≥ Unicode 16 → `<b>ខ្ញុំ</b>` | 2 clusters in the GB9c approximation → `<b>ខ្</b>ញុំ` | GB9c does not yet cover Khmer coeng everywhere |
+| `iPhone手机很好用` | dictionary: `iPhone`, `手机`, `很好`, `用` | run rule: `iPhone` + `手机很好用` | no dictionary in the fallback |
+| `abcก` | one word `abcก` | run rule: `abc` + `ก` | no Thai dictionary in the fallback |
+
+Dictionary-dependent inputs on which the ICU engines of every ICU-backed port agree belong in `fixtures/segmenter/` instead; see `docs/LANGUAGES.md` for the per-engine variations that keep an input out of both fixture groups.
 
 ### Grapheme cluster resolution
 Grapheme clusters are evaluated according to Unicode UAX #29 extended grapheme cluster boundaries:
@@ -136,10 +198,11 @@ export function createTransformStream(options?: HtmlOptions): TransformStream<st
 ### Behavioral guarantees
 
 1. **HTML Escaping**: `toHtml` safely escapes `<`, `>`, `&`, and `"` in emitted text. Existing tags pass through unmodified when `ignoreHtmlTags: true`.
-2. **Range Clamping**: Out-of-range values are clamped automatically, never throwing or failing silently (`fixation` outside 1–5 clamps to `1` or `5`; `saccade < 1` clamps to `1`).
+2. **Range Clamping**: Out-of-range values are clamped automatically, never throwing or failing silently (`fixation` outside 1–5 clamps to `1` or `5`; `saccade < 1` clamps to `1`; `minWordLength < 0` behaves like `0`). A numeric value that is not an integer is **truncated toward zero first** and then clamped (`fixation: 4.9` is a `4`), and a non-finite value falls back to the default. Values of the wrong *type* (a string, a boolean) are rejected in ports whose type system does not already exclude them.
 3. **Saccade Counting**: Saccade intervals count word tokens only. The first word of the input always receives a fixation (index 0 mod saccade). Every word token consumes an index, including numeric words and short words. Text within skipped tags is never tokenized and consumes no saccade index.
 4. **No Nested Emphasis**: When `ignoreHtmlTags: true`, the specified `tag` and `restTag` are automatically added to the skip list, preventing double-wrapping of existing markup.
 5. **Entity Handling**: Existing HTML character references (`&amp;`, `&#x27;`) pass through untouched and act as word boundaries. Bare `&` characters that do not start valid entities are escaped.
+6. **Markup lexing**: `<` starts markup only when the next character is an ASCII letter, `/`, `!` or `?`; the markup then ends at the next `>`, except that `<!--` runs to `-->` and `<![CDATA[` runs to `]]>` — an *unterminated* comment or CDATA block degrades to a declaration ending at the first `>` (`a <!-- b > c` → `<b>a</b> <!-- b > <b>c</b>`). An unterminated `<` is ordinary text and is escaped. Within a tag, the **name** starts at the first ASCII letter (after an optional `/`, which may be followed by whitespace, so `</ code>` closes `code`) and runs until whitespace, `/` or `>` — therefore `<code.x>` is named `code.x` and is *not* the skip tag `code`. A tag is **self-closing**, and so never opens a skipped element, when it ends in `/` optionally followed by whitespace before the `>` (`<br/>`, `<code / >`). Names are compared case-insensitively.
 
 ---
 
@@ -164,6 +227,7 @@ Consumers may configure `tag: "span"` and `className: "sr-fixation"` to style fi
 | `SmoothReading` (SwiftPM) | iOS 15+, macOS 12+, watchOS 8+, tvOS 15+, visionOS 1+ | `tokenize`, `nsAttributedString`, `attributedString`, `html` |
 | `io.github.pythonshe` (Maven Central) | Android (minSdk 24+), JVM | `tokenize`, `annotatedString`, `spanned`, `toHtml` |
 | `smooth-reading` (PyPI) | Python 3.10+ | `tokenize`, `to_html`, `to_markdown`, CLI |
+| `smooth_reading` (pub.dev) | Dart 3.0+, Flutter (all platforms), server, web | `tokenize`, `toHtml`, `toMarkdown`, `Segmenter` |
 
 All ports pass `fixtures/common/*`. Ports with access to platform ICU word breaking also pass `fixtures/segmenter/*`.
 

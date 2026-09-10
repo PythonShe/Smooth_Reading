@@ -1,7 +1,6 @@
 package io.smoothreading
 
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
@@ -107,10 +106,32 @@ class FixationTest {
     }
 
     @Test
-    fun `options are validated`() {
-        assertThrows(IllegalArgumentException::class.java) { SmoothOptions(fixation = 0) }
-        assertThrows(IllegalArgumentException::class.java) { SmoothOptions(fixation = 6) }
-        assertThrows(IllegalArgumentException::class.java) { SmoothOptions(saccade = 0) }
-        assertThrows(IllegalArgumentException::class.java) { SmoothOptions(minWordLength = -1) }
+    fun `out-of-range options are clamped, never rejected`() {
+        // SPEC §4 guarantee 2, matching the TypeScript, Swift and Python ports.
+        assertEquals(1, SmoothOptions(fixation = 0).fixation)
+        assertEquals(1, SmoothOptions(fixation = -7).fixation)
+        assertEquals(5, SmoothOptions(fixation = 6).fixation)
+        assertEquals(5, SmoothOptions(fixation = Int.MAX_VALUE).fixation)
+        assertEquals(1, SmoothOptions(saccade = 0).saccade)
+        assertEquals(1, SmoothOptions(saccade = Int.MIN_VALUE).saccade)
+        assertEquals(0, SmoothOptions(minWordLength = -1).minWordLength)
+        // The clamped values are what the algorithm uses.
+        assertEquals(1, SmoothReading.fixationLength("Smooth", options = SmoothOptions(fixation = 0)))
+        assertEquals(5, SmoothReading.fixationLength("Smooth", options = SmoothOptions(fixation = 9)))
+        assertEquals(
+            "<b>S</b>mooth <b>r</b>eading",
+            SmoothReading.toHtml("Smooth reading", SmoothOptions(fixation = -1, saccade = 0)),
+        )
+    }
+
+    @Test
+    fun `copy clamps like the constructor and keeps the other fields`() {
+        val options = SmoothOptions(fixation = 4, minWordLength = 2, emphasizeNumbers = true)
+        val copy = options.copy(fixation = 99)
+        assertEquals(5, copy.fixation)
+        assertEquals(2, copy.minWordLength)
+        assertEquals(true, copy.emphasizeNumbers)
+        assertEquals(options, options.copy())
+        assertEquals(options.hashCode(), options.copy().hashCode())
     }
 }

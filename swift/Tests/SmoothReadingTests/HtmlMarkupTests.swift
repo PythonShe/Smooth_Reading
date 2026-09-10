@@ -142,6 +142,28 @@ final class HtmlMarkupTests: XCTestCase {
 
     func testSelfClosingSkipTagDoesNotStartASkip() {
         XCTAssertEqual(html("<code/> reading"), "<code/> <b>read</b>ing")
+        // `/\/\s*>$/`: whitespace may sit between the slash and the `>`.
+        XCTAssertEqual(html("<code / >hello</code>"), "<code / ><b>hel</b>lo</code>")
+        XCTAssertEqual(html("<code /\n>hello</code>"), "<code /\n><b>hel</b>lo</code>")
+        // …and a self-closing tag inside a skip does not close it either.
+        XCTAssertEqual(html("<code>a <code / > b</code> reading"), "<code>a <code / > b</code> <b>read</b>ing")
+    }
+
+    /// The tag name runs from the first ASCII letter to the first whitespace,
+    /// `/` or `>` — the grammar of `TAG_NAME_RE` in the reference renderer.
+    func testTagNameGrammar() {
+        // `code.x` is its own element name, so it is not the `code` skip tag.
+        XCTAssertEqual(html("<code.x>hello</code.x>"), "<code.x><b>hel</b>lo</code.x>")
+        XCTAssertEqual(html("<code-x>hi</code-x> there"), "<code-x><b>h</b>i</code-x> <b>the</b>re")
+        // Whitespace after the `/` of a closing tag is allowed.
+        XCTAssertEqual(html("</ code>hello"), "</ code><b>hel</b>lo")
+        XCTAssertEqual(html("<code>a</ code> reading"), "<code>a</ code> <b>read</b>ing")
+        // Attributes and newlines end the name, and the name is case-insensitive.
+        XCTAssertEqual(html("<code\n>hi</code> there"), "<code\n>hi</code> <b>the</b>re")
+        XCTAssertEqual(html("<code class=\"x\">hi</code> there"), "<code class=\"x\">hi</code> <b>the</b>re")
+        // Markup with no tag name at all never touches the skip state.
+        XCTAssertEqual(html("<code><!DOCTYPE html><?x?>a</code> reading"),
+                       "<code><!DOCTYPE html><?x?>a</code> <b>read</b>ing")
     }
 
     func testUnclosedSkipElementSkipsToTheEnd() {
@@ -220,6 +242,19 @@ final class HtmlMarkupTests: XCTestCase {
         XCTAssertEqual(
             SmoothReading.html("to", options: HtmlOptions(options: SmoothOptions(fixation: 5), restTag: "i")),
             "<b>to</b>")
+    }
+
+    /// Only `nil` omits the attribute; an empty class name emits `class=""`,
+    /// exactly like the TypeScript, Kotlin and Python ports.
+    func testEmptyClassNameStillEmitsTheAttribute() {
+        XCTAssertEqual(
+            SmoothReading.html("hello world", options: HtmlOptions(className: "")),
+            "<b class=\"\">hel</b>lo <b class=\"\">wor</b>ld")
+        XCTAssertEqual(
+            SmoothReading.html(
+                "hello world", options: HtmlOptions(className: "", restTag: "span", restClassName: "")),
+            "<b class=\"\">hel</b><span class=\"\">lo</span> <b class=\"\">wor</b><span class=\"\">ld</span>")
+        XCTAssertEqual(SmoothReading.html("hello", options: HtmlOptions(className: nil)), "<b>hel</b>lo")
     }
 
     func testClassNamesAreEscaped() {

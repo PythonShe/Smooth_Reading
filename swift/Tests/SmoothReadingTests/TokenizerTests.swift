@@ -57,6 +57,63 @@ final class TokenizerTests: XCTestCase {
         XCTAssertEqual(words("don't stop, well-known.", localized), ["don't", "stop", "well", "known"])
     }
 
+    /// Dictionary-based CJK breaking is the default, not something a caller has
+    /// to opt into with a locale: `nil` auto-detects the language rather than
+    /// falling back to the root break rules, which split every Han character.
+    func testCJKGetsDictionaryBreaksWithoutALocale() {
+        XCTAssertEqual(words("你好，世界！"), ["你好", "世界"])
+        XCTAssertEqual(words("我喜欢阅读"), ["我", "喜欢", "阅读"])
+        XCTAssertEqual(words("日本語OKです"), ["日本", "語", "OK", "です"])
+        XCTAssertEqual(words("こんにちは世界"), ["こんにちは", "世界"])
+        XCTAssertEqual(words("สวัสดีชาวโลก").count, 2)
+    }
+
+    /// The same inputs through ``SmoothReading/html(_:options:)``, which is what
+    /// the fixtures assert.
+    func testCJKHtmlWithoutALocaleMatchesTheLocaleAwareOutput() {
+        for (input, locale) in [
+            ("你好，世界！", "zh"), ("我喜欢阅读", "zh"), ("日本語OKです", "ja"),
+            ("こんにちは世界", "ja"), ("สวัสดีชาวโลก", "th"), ("私は本を読みます", "ja"),
+        ] {
+            let localized = HtmlOptions(options: SmoothOptions(locale: Locale(identifier: locale)))
+            XCTAssertEqual(SmoothReading.html(input), SmoothReading.html(input, options: localized), input)
+        }
+        XCTAssertEqual(SmoothReading.html("你好，世界！"), "<b>你</b>好，<b>世</b>界！")
+        XCTAssertEqual(SmoothReading.html("我喜欢阅读"), "<b>我</b><b>喜</b>欢<b>阅</b>读")
+    }
+
+    /// Auto-detection keeps only the language subtag, so the inherited script of
+    /// a *guessed* language never changes the dictionary: text a caller wants
+    /// segmented with the Traditional Chinese dictionary must say so explicitly.
+    func testAnExplicitLocaleIsNeverOverriddenByDetection() {
+        let hant = HtmlOptions(options: SmoothOptions(locale: Locale(identifier: "zh-Hant")))
+        XCTAssertEqual(
+            SmoothReading.html("我們今天學習中文。", options: hant),
+            "<b>我</b>們<b>今</b>天<b>學</b>習<b>中</b>文。")
+    }
+
+    /// Without a locale, every `fixtures/segmenter` case whose locale is a plain
+    /// language tag must still produce the fixture's HTML — the whole point of
+    /// auto-detection. Cases pinned to a script (`zh-Hant`) are excluded: they
+    /// exist to assert that an explicit variant wins.
+    func testSegmenterFixturesAlsoPassWithNoLocaleAtAll() throws {
+        var checked = 0
+        for fixture in try Self.segmenterFixtures() {
+            guard let locale = fixture.options?.locale, !locale.contains("-"), !locale.contains("_")
+            else { continue }
+            var options = SmoothOptions()
+            if let value = fixture.options?.fixation { options.fixation = value }
+            if let value = fixture.options?.saccade { options.saccade = value }
+            if let value = fixture.options?.minWordLength { options.minWordLength = value }
+            if let value = fixture.options?.emphasizeNumbers { options.emphasizeNumbers = value }
+            XCTAssertEqual(
+                SmoothReading.html(fixture.input, options: HtmlOptions(options: options)),
+                fixture.html, "no locale: \(fixture.name)")
+            checked += 1
+        }
+        XCTAssertGreaterThan(checked, 0)
+    }
+
     func testCJKIsSegmentedAndFullyPreserved() {
         // ICU applies dictionary-based breaks here; the exact segmentation is a
         // `fixtures/segmenter` concern, so only assert lossless round-tripping.
@@ -71,9 +128,9 @@ final class TokenizerTests: XCTestCase {
         XCTAssertEqual(words("สวัสดีครับ").count, 2)
     }
 
-    /// The two ICU paths — `enumerateSubstrings(.byWords)` without a locale and
-    /// `CFStringTokenizer` with one — must produce identical word ranges for
-    /// Latin-like text, including every `fixtures/common` input.
+    /// The two locale paths — auto-detected and explicit — must produce
+    /// identical word ranges for Latin-like text, including every
+    /// `fixtures/common` input.
     func testBothTokenizerPathsAgree() throws {
         var inputs = [
             "Smooth reading works.", "don't stop, it’s well-known!", "...Hello, world!!!",
@@ -105,14 +162,38 @@ final class TokenizerTests: XCTestCase {
 
     private struct FixtureInput: Decodable { var input: String }
 
-    private static func commonFixtureInputs() throws -> [String] {
+    private struct SegmenterFixture: Decodable {
+        struct Options: Decodable {
+            var fixation: Int?
+            var saccade: Int?
+            var minWordLength: Int?
+            var emphasizeNumbers: Bool?
+            var locale: String?
+        }
+        var name: String
+        var input: String
+        var options: Options?
+        var html: String
+    }
+
+    private static func fixtureFiles(_ suite: String) throws -> [URL] {
         let directory = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().appendingPathComponent("fixtures/common")
+            .deletingLastPathComponent().appendingPathComponent("fixtures/\(suite)")
         let files = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
             .filter { $0.pathExtension == "json" }
         XCTAssertFalse(files.isEmpty)
-        return try files.flatMap { try JSONDecoder().decode([FixtureInput].self, from: Data(contentsOf: $0)) }
+        return files
+    }
+
+    private static func commonFixtureInputs() throws -> [String] {
+        try fixtureFiles("common")
+            .flatMap { try JSONDecoder().decode([FixtureInput].self, from: Data(contentsOf: $0)) }
             .map(\.input)
+    }
+
+    private static func segmenterFixtures() throws -> [SegmenterFixture] {
+        try fixtureFiles("segmenter")
+            .flatMap { try JSONDecoder().decode([SegmenterFixture].self, from: Data(contentsOf: $0)) }
     }
 }

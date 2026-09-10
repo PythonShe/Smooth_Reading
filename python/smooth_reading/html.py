@@ -15,17 +15,24 @@ SKIP_TAGS: tuple[str, ...] = ("code", "pre", "script", "style", "kbd", "samp", "
 
 # Markup that is passed through verbatim when ``ignore_html_tags`` is on: a
 # comment, a CDATA section, a tag (``<`` only starts one when followed by a
-# letter, ``/``, ``!`` or ``?``), or a character reference. Anything else --
-# including an unterminated ``<p`` -- is text and gets escaped.
+# letter, ``/``, ``!`` or ``?``) that ends at the next ``>``, or a character
+# reference. Anything else -- including an unterminated ``<p`` -- is text and
+# gets escaped. An unterminated comment or CDATA block degrades to an ordinary
+# declaration ending at the first ``>``, exactly as in the TypeScript core.
 _MARKUP = re.compile(
     r"<!--.*?-->"
     r"|<!\[CDATA\[.*?\]\]>"
-    r"|</?[A-Za-z][^>]*>"
-    r"|<[!?][^>]*>"
+    r"|<[/!?][^>]*>"
+    r"|<[A-Za-z][^>]*>"
     r"|&(?:#[0-9]+|#[xX][0-9a-fA-F]+|[A-Za-z][A-Za-z0-9]*);",
     re.DOTALL,
 )
-_TAG = re.compile(r"<(/?)([A-Za-z][A-Za-z0-9:-]*)[^>]*?(/?)>")
+# A tag name runs from the first letter until whitespace, ``/`` or ``>``, so
+# ``<code.x>`` is named ``code.x`` (not the skip tag ``code``) and ``</ code>``
+# is a closing ``code`` tag. Mirrors ``TAG_NAME_RE`` in the core's html.ts.
+_TAG = re.compile(r"<\s*(/?)\s*([A-Za-z][^\s/>]*)")
+#: ``<br/>`` and ``<code / >`` are self-closing; the trailing ``/`` may be spaced.
+_SELF_CLOSING = re.compile(r"/\s*>$")
 
 
 def _escape(text: str) -> str:
@@ -55,7 +62,7 @@ def _split_markup(text: str, skip_tags: Iterable[str]) -> Iterator[tuple[bool, s
         if tag is None:
             continue
         closing, name = tag.group(1) == "/", tag.group(2).lower()
-        if tag.group(3):  # self-closing, e.g. <br/>
+        if _SELF_CLOSING.search(raw):  # self-closing, e.g. <br/> or <code / >
             continue
         if skip_name is None:
             if not closing and name in skipped:

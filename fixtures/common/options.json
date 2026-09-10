@@ -58,5 +58,29 @@
     "input": "Try <code>this</code> now.",
     "options": { "fixation": 3, "skipTags": ["em"] },
     "html": "<b>Tr</b>y <code><b>th</b>is</code> <b>no</b>w."
+  },
+  {
+    "name": "fixation 99 clamps to 5",
+    "input": "Smooth reading works.",
+    "options": { "fixation": 99 },
+    "html": "<b>Smoot</b>h <b>readin</b>g <b>work</b>s."
+  },
+  {
+    "name": "fixation 0 clamps to 1",
+    "input": "Smooth reading works.",
+    "options": { "fixation": 0 },
+    "html": "<b>S</b>mooth <b>r</b>eading <b>w</b>orks."
+  },
+  {
+    "name": "saccade 0 clamps to 1",
+    "input": "Smooth reading works.",
+    "options": { "saccade": 0 },
+    "html": "<b>Smo</b>oth <b>read</b>ing <b>wor</b>ks."
+  },
+  {
+    "name": "minWordLength -1 behaves like 0",
+    "input": "I am on a big trip",
+    "options": { "minWordLength": -1 },
+    "html": "<b>I</b> <b>a</b>m <b>o</b>n <b>a</b> <b>bi</b>g <b>tr</b>ip"
   }
 ]

@@ -83,4 +83,63 @@ describe('segmenter selection', () => {
     // One 5-character run -> prefix 3.
     expect(toHtml('我喜欢阅读。')).toBe('<b>我喜欢</b>阅读。');
   });
+
+  describe('no-space-script run rule (SPEC §3)', () => {
+    const words = (text: string): string[] =>
+      tokenize(text).filter((t) => t.type === 'word').map((t) => t.text);
+
+    it('splits a run from adjacent letters and digits of other scripts', () => {
+      removeSegmenter();
+      expect(words('iPhone手机')).toEqual(['iPhone', '手机']);
+      expect(words('abcก')).toEqual(['abc', 'ก']);
+      expect(words('日本語OKです')).toEqual(['日本語', 'OK', 'です']);
+      expect(words('abc한글')).toEqual(['abc', '한글']);
+      expect(words('2024年')).toEqual(['2024', '年']);
+    });
+
+    it('is one word per continuous run, whatever the run length', () => {
+      removeSegmenter();
+      expect(words('iPhone手机很好用')).toEqual(['iPhone', '手机很好用']);
+      expect(words('ภาษาไทยง่าย')).toEqual(['ภาษาไทยง่าย']);
+      expect(words('ພາສາລາວ')).toEqual(['ພາສາລາວ']);
+      expect(words('မြန်မာ')).toEqual(['မြန်မာ']);
+      expect(words('ខ្ញុំ')).toEqual(['ខ្ញុំ']);
+    });
+
+    it('keeps combining marks that follow a run character in the run', () => {
+      removeSegmenter();
+      expect(words('我́x')).toEqual(['我́', 'x']);
+      expect(words('我́')).toEqual(['我́']);
+      // A mark that follows no run character is part of the separator (WB4).
+      expect(words('abcั')).toEqual(['abc']);
+    });
+
+    it('never lets an apostrophe join a run character to an ordinary word', () => {
+      removeSegmenter();
+      expect(words("don't")).toEqual(["don't"]);
+      expect(words("it'手机")).toEqual(['it', '手机']);
+      expect(words("手机'it")).toEqual(['手机', 'it']);
+    });
+
+    it('only counts run-table characters whose category is L, N or M', () => {
+      removeSegmenter();
+      // U+30FB Katakana middle dot is punctuation: a separator, not a run char.
+      expect(words('ア・イ')).toEqual(['ア', 'イ']);
+      // U+3007 ideographic zero and U+3005 iteration mark are letters/numbers.
+      expect(words('〇〇')).toEqual(['〇〇']);
+    });
+
+    it('matches the Intl.Segmenter path on the shared run fixtures', () => {
+      for (const input of ['iPhone手机', 'abc한글', 'OK한국어문장', '我́x']) {
+        const icu = toHtml(input);
+        removeSegmenter();
+        expect(toHtml(input), input).toBe(icu);
+        Object.defineProperty(Intl, 'Segmenter', {
+          value: realSegmenter,
+          configurable: true,
+          writable: true,
+        });
+      }
+    });
+  });
 });

@@ -12,11 +12,62 @@
  */
 
 /**
+ * SPEC §3 no-space-script table: the inclusive code-point ranges whose letters,
+ * digits and marks are written without spaces (Han, Kana, Hangul, Thai, Lao,
+ * Myanmar, Khmer). A character belongs to the table only when its general
+ * category is `L`, `N` or `M`, so punctuation living inside a range — the
+ * Katakana middle dot U+30FB, say — is a separator as usual.
+ */
+const RUN_RANGES =
+  '\\u0E00-\\u0E7F' + // Thai
+  '\\u0E80-\\u0EFF' + // Lao
+  '\\u1000-\\u109F' + // Myanmar
+  '\\u1100-\\u11FF' + // Hangul Jamo
+  '\\u1780-\\u17FF' + // Khmer
+  '\\u3005-\\u3007' + // iteration marks, ideographic zero
+  '\\u3041-\\u30FF' + // Hiragana, Katakana
+  '\\u3130-\\u318F' + // Hangul Compatibility Jamo
+  '\\u31F0-\\u31FF' + // Katakana Phonetic Extensions
+  '\\u3400-\\u4DBF' + // CJK Extension A
+  '\\u4E00-\\u9FFF' + // CJK Unified Ideographs
+  '\\uA960-\\uA97F' + // Hangul Jamo Extended-A
+  '\\uA9E0-\\uA9FF' + // Myanmar Extended-B
+  '\\uAA60-\\uAA7F' + // Myanmar Extended-A
+  '\\uAC00-\\uD7A3' + // Hangul Syllables
+  '\\uD7B0-\\uD7FF' + // Hangul Jamo Extended-B
+  '\\uF900-\\uFAFF' + // CJK Compatibility Ideographs
+  '\\uFF66-\\uFF9D' + // halfwidth Katakana
+  '\\uFFA0-\\uFFDC' + // halfwidth Hangul
+  '\\u{20000}-\\u{2EBEF}' + // CJK Extensions B-F
+  '\\u{2F800}-\\u{2FA1F}' + // CJK Compatibility Ideographs Supplement
+  '\\u{30000}-\\u{323AF}'; // CJK Extensions G-H
+
+/** A run character that may open a word: in the table and a letter or digit. */
+const RUN_HEAD = `(?=[\\p{L}\\p{N}])[${RUN_RANGES}]`;
+/** A run continues on further run characters and on any combining mark. */
+const RUN_TAIL = `(?:${RUN_HEAD}|\\p{M})`;
+/** A word character outside the table: the ordinary-word alphabet. */
+const PLAIN = `(?![${RUN_RANGES}])`;
+
+/**
  * SPEC §3 fallback tokenizer: apostrophes join, hyphens split, and a word never
  * starts with a combining mark — a mark after a separator (the variation
  * selector of ❤️, say) belongs to that separator, as in ICU (UAX #29 WB4).
+ *
+ * A continuous run of no-space-script characters ({@link RUN_RANGES}) is one
+ * word per run and is split from adjacent letters or digits of other scripts
+ * (`iPhone手机` → `iPhone` + `手机`), while combining marks following a run
+ * character stay attached to the run (`我́` is one word). Ordinary words are the
+ * spec regex `[\p{L}\p{N}][\p{L}\p{N}\p{M}]*(?:['’][\p{L}\p{N}\p{M}]+)*`
+ * restricted to non-run characters, so an apostrophe joins only when the next
+ * character is a non-run word character.
  */
-const WORD_RE = /[\p{L}\p{N}][\p{L}\p{N}\p{M}]*(?:['’][\p{L}\p{N}\p{M}]+)*/gu;
+const WORD_RE = new RegExp(
+  `${RUN_HEAD}${RUN_TAIL}*` +
+    `|${PLAIN}[\\p{L}\\p{N}](?:${PLAIN}[\\p{L}\\p{N}\\p{M}])*` +
+    `(?:['’](?:${PLAIN}[\\p{L}\\p{N}\\p{M}])+)*`,
+  'gu',
+);
 
 type Granularity = 'word' | 'grapheme';
 

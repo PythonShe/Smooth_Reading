@@ -40,5 +40,35 @@
     "input": "a 2024 reading",
     "options": { "fixation": 2, "restTag": "i" },
     "html": "a 2024 <b>re</b><i>ading</i>"
+  },
+  {
+    "name": "a CDATA section passes through verbatim, bare > and all",
+    "input": "x <![CDATA[ a > b ]]> y",
+    "options": {},
+    "html": "<b>x</b> <![CDATA[ a > b ]]> <b>y</b>"
+  },
+  {
+    "name": "an unterminated comment degrades to a declaration ending at the first >",
+    "input": "a <!-- b > c",
+    "options": {},
+    "html": "<b>a</b> <!-- b > <b>c</b>"
+  },
+  {
+    "name": "a tag name runs to whitespace, / or >, so <code.x> is not the skip tag code",
+    "input": "<code.x>hello</code.x>",
+    "options": {},
+    "html": "<code.x><b>hel</b>lo</code.x>"
+  },
+  {
+    "name": "</ code> is a closing tag: space after the slash still closes the skip element",
+    "input": "<code>a</ code>b",
+    "options": {},
+    "html": "<code>a</ code><b>b</b>"
+  },
+  {
+    "name": "<code / > is self-closing, so it never opens a skip element",
+    "input": "<code / >hello</code>",
+    "options": {},
+    "html": "<code / ><b>hel</b>lo</code>"
   }
 ]

@@ -140,8 +140,8 @@ Shared across `tokenize`, `toHtml`, `applyToElement`, and `createTransformStream
 
 | Option | Type | Default | Description |
 | --- | --- | --- | --- |
-| `fixation` | `1 \| 2 \| 3 \| 4 \| 5` | `3` | Fixation strength. Ratios: `0.20 / 0.35 / 0.50 / 0.65 / 0.80`. Values outside `1…5` are automatically clamped. |
-| `saccade` | `number` | `1` | Emphasises every *n*-th word. Every word token consumes an index (including numbers and short words). Values `< 1` are clamped to `1`. |
+| `fixation` | `1 \| 2 \| 3 \| 4 \| 5` | `3` | Fixation strength. Ratios: `0.20 / 0.35 / 0.50 / 0.65 / 0.80`. Non-integers are truncated toward zero and values outside `1…5` are clamped (`4.9` → `4`, `99` → `5`); non-finite values fall back to `3`. |
+| `saccade` | `number` | `1` | Emphasises every *n*-th word. Every word token consumes an index (including numbers and short words). Non-integers are truncated and values `< 1` are clamped to `1`. |
 | `minWordLength` | `number` | `1` | Minimum grapheme clusters required for a word to receive fixation. |
 | `emphasizeNumbers` | `boolean` | `false` | Whether to emphasise words composed entirely of decimal digits. |
 | `locale` | `string` | `undefined` | BCP-47 language tag passed to `Intl.Segmenter`. Falls back to runtime default if unspecified or invalid. |
@@ -227,9 +227,28 @@ toHtml('สวัสดีครับ', { locale: 'th' }); // '<b>สวั</b>
 In runtimes lacking `Intl.Segmenter`, the library falls back to the specification's regular expression scanner:
 `[\p{L}\p{N}][\p{L}\p{N}\p{M}]*(?:['’][\p{L}\p{N}\p{M}]+)*`
 
-Grapheme clusters are approximated as a base character plus following combining marks (including ZWJ sequences and CR LF). The fallback produces identical output to `Intl.Segmenter` for all space-separated scripts in `fixtures/common/`. For unbroken CJK or Thai text, it treats each unbroken run as a single word.
+Grapheme clusters are approximated as a base character plus following combining marks (including ZWJ sequences and CR LF). The fallback produces identical output to `Intl.Segmenter` for every case in `fixtures/common/`.
+
+**The continuous run rule.** Text in a script written without spaces — Han, Hiragana, Katakana, Hangul, Thai, Lao, Myanmar, Khmer, per the code-point table in [SPEC §3](../../docs/SPEC.md#3-tokenizer--word-boundary-specification) — is one word per unbroken run, split from the letters and digits of every other script. Combining marks following a run character stay in the run:
+
+```ts
+toHtml('iPhone手机');   // '<b>iPh</b>one<b>手</b>机'   — two words
+toHtml('日本語OKです'); // '<b>日本</b>語<b>O</b>K<b>で</b>す' — three words
+```
+
+**Accepted differences.** The fallback is a predictable degradation, not a match for ICU. Without dictionaries it cannot split `手机很好用` into lexical words, and without the full UAX #29 table it differs on `3.14`, `1,000`, `snake_case`, `½` and `X'0`. SPEC §3 lists each case; `fixtures/common/` deliberately contains only inputs on which both paths agree.
 
 Runtime capability is detected dynamically on each call, so polyfills loaded after initialization are picked up automatically. Use `usesIntlSegmenter()` to inspect active segmentation mode.
+
+### HTML lexing
+
+`toHtml` and `createTransformStream` share one lexer (SPEC §4.6). A `<` starts markup only before an ASCII letter, `/`, `!` or `?`, and the markup ends at the next `>` — except `<!--`/`<![CDATA[`, which run to `-->`/`]]>` and degrade to a declaration ending at the first `>` when unterminated. A tag **name** begins at the first ASCII letter (after an optional `/`, which may be followed by whitespace) and runs until whitespace, `/` or `>`, so `<code.x>` is named `code.x` and is not the `code` skip tag; a tag ending in `/` before the `>` is self-closing and never opens a skipped element.
+
+```ts
+toHtml('<code.x>hello</code.x>');    // '<code.x><b>hel</b>lo</code.x>'
+toHtml('<code>a</ code>b');          // '<code>a</ code><b>b</b>'
+toHtml('<code / >hello</code>');     // '<code / ><b>hel</b>lo</code>'
+```
 
 ---
 

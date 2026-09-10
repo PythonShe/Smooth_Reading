@@ -11,7 +11,9 @@ public struct SmoothOptions: Sendable {
     public var minWordLength: Int
     /// Emphasise words consisting entirely of digits. Default `false`.
     public var emphasizeNumbers: Bool
-    /// Locale handed to the ICU word breaker. `nil` → the runtime default.
+    /// Locale handed to the ICU word breaker. `nil` auto-detects the language
+    /// of the text, so dictionary-based CJK/Thai breaking is on by default;
+    /// pass a locale to pin it (`zh-Hant` for Traditional Chinese).
     public var locale: Locale?
     /// Optional override replacing the fixation-length algorithm entirely.
     /// Receives the word, its grapheme count and the resolved options; the

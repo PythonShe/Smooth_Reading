@@ -20,12 +20,12 @@ Every code snippet below is verified by unit tests in `ReadmeSnippetsTest`.
 ```kotlin
 // build.gradle.kts — Android app or library
 dependencies {
-    implementation("io.github.pythonshe:smooth-reading:0.1.0-rc.2")
+    implementation("io.github.pythonshe:smooth-reading:0.2.0")
 }
 
 // build.gradle.kts — Plain Kotlin/JVM project (SSR, desktop, CLI)
 dependencies {
-    implementation("io.github.pythonshe:smooth-reading-core:0.1.0-rc.2")
+    implementation("io.github.pythonshe:smooth-reading-core:0.2.0")
 }
 ```
 
@@ -140,7 +140,8 @@ SmoothReading.toHtml("reading", firstHalf) // <b>rea</b>ding
 
 ### Algorithm options (`SmoothOptions`)
 
-All parameters are strictly validated at construction:
+Out-of-range values are clamped at construction, never rejected (SPEC §4, guarantee 2):
+`fixation` into `1..5`, `saccade` to `>= 1` and `minWordLength` to `>= 0`.
 
 | Option | Type | Default | Description |
 | --- | --- | --- | --- |
@@ -171,7 +172,7 @@ All parameters are strictly validated at construction:
 
 | Segmenter | Environment | Characteristics |
 | --- | --- | --- |
-| `SpecWordSegmenter` | All JVM runtimes (default for `tokenize()` / `toHtml()`) | Spec-compliant Unicode scanner (`[\p{L}\p{N}\p{M}]+(?:['’][\p{L}\p{N}\p{M}]+)*`), grouping runs of Han, Kana, Hangul, or Thai into unified words. Guarantees byte-identical output with `fixtures/common/`. |
+| `SpecWordSegmenter` | All JVM runtimes (default for `tokenize()` / `toHtml()`) | Spec-compliant Unicode scanner (`[\p{L}\p{N}\p{M}]+(?:['’][\p{L}\p{N}\p{M}]+)*`), grouping each continuous run of a no-space script (Han, Kana, Hangul, Thai, Lao, Myanmar, Khmer) into one word, split from the letters and digits around it (`iPhone手机` is two words). Guarantees byte-identical output with `fixtures/common/`. |
 | `IcuWordSegmenter` | Android (default for `spanned()` / `annotatedString()`) | Built on `android.icu.text.BreakIterator`. Provides full ICU dictionary-based segmentation for Chinese, Japanese, and Thai. Passes `fixtures/segmenter/`. |
 
 The JVM default deliberately avoids `java.text.BreakIterator` for word breaking, as legacy JDK break iterators misclassify hyphens and contractions. 
