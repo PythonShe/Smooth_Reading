@@ -60,33 +60,25 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write # npm provenance attestation
-    env:
-      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      id-token: write # npm trusted publishing (OIDC) + provenance attestation
     steps:
-      - if: env.NPM_TOKEN == ''
-        run: echo "::warning::NPM_TOKEN not set, skipping npm publish"
-      - if: env.NPM_TOKEN != ''
-        uses: actions/checkout@v7
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.tag }}
-      - if: env.NPM_TOKEN != ''
-        uses: pnpm/action-setup@v6
-      - if: env.NPM_TOKEN != ''
-        uses: actions/setup-node@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: pnpm
           registry-url: https://registry.npmjs.org
-      - if: env.NPM_TOKEN != ''
-        run: pnpm install --frozen-lockfile
-      - if: env.NPM_TOKEN != ''
-        run: pnpm build && pnpm typecheck && pnpm test && pnpm pack:check
-      - if: env.NPM_TOKEN != ''
-        name: Publish
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build && pnpm typecheck && pnpm test && pnpm pack:check
+      - name: Publish
         working-directory: packages/core
+        # No NPM_TOKEN: the package's trusted publisher on npmjs.com is this
+        # repository + release.yml, so pnpm exchanges the GitHub OIDC token
+        # for a short-lived publish token at publish time.
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: "true"
         run: |
           set -eu
@@ -140,25 +132,35 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.tag }}
-      - uses: dart-lang/setup-dart@v1
-        with:
-          sdk: stable
-      - run: dart pub get
-      - run: dart analyze --fatal-infos && dart test
-      - name: Publish
+      # The first version of a package cannot be published from CI (the owner
+      # runs `dart pub publish` once, then enables automated publishing in the
+      # package Admin tab). Until then pub.dev rejects the OIDC token even for
+      # `pub get`, so the job decides first and only then sets up Dart.
+      - id: check
+        name: Is this version missing from pub.dev?
         run: |
           set -eu
           version="${{ needs.verify.outputs.version }}"
           if ! curl -fsS "https://pub.dev/api/packages/smooth_reading" >/dev/null 2>&1; then
-            echo "::warning::smooth_reading is not on pub.dev yet; the first version must be published manually (dart pub publish), then enable automated publishing. Skipping."; exit 0
+            echo "::warning::smooth_reading is not on pub.dev yet; publish the first version manually. Skipping."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          elif curl -fsS "https://pub.dev/api/packages/smooth_reading/versions/$version" >/dev/null 2>&1; then
+            echo "smooth_reading $version is already on pub.dev, skipping"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
           fi
-          if curl -fsS "https://pub.dev/api/packages/smooth_reading/versions/$version" >/dev/null 2>&1; then
-            echo "smooth_reading $version is already on pub.dev, skipping"; exit 0
-          fi
-          # setup-dart exchanges the GitHub OIDC token for a pub.dev token when
-          # id-token: write is granted and pub.dev has automated publishing
-          # enabled for this repository (Admin tab of the package).
-          dart pub publish --force
+      - if: steps.check.outputs.publish == 'true'
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+      # setup-dart exports the OIDC-exchanged PUB_TOKEN; keep it out of the
+      # read-only steps so a token problem can only surface at publish time.
+      - if: steps.check.outputs.publish == 'true'
+        run: unset PUB_TOKEN && dart pub get && dart analyze --fatal-infos && dart test
+      - if: steps.check.outputs.publish == 'true'
+        name: Publish
+        run: dart pub publish --force
 
   maven-central:
     name: Maven Central (io.github.pythonshe)
