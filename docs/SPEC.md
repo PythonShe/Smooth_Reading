@@ -30,13 +30,15 @@ ratio     = { 1: 0.20, 2: 0.35, 3: 0.50, 4: 0.65, 5: 0.80 }[s]
 prefixLen = clamp( round_half_up(n * ratio), 1, n )   // for n >= 1
 ```
 
-Special cases, applied in this order:
+Special cases. Suppression rules are evaluated first; if any of them applies the word gets **no** fixation (`prefixLen = 0`). Only then does the single-character rule apply, and finally the ratio formula:
 
-1. `n == 0` → no fixation (cannot happen for a word token; separators are never emphasised).
-2. `n == 1` → the single character is emphasised **only if** `s >= 3`; otherwise no fixation.
-3. Words that consist entirely of digits are **not** emphasised by default (`emphasizeNumbers: false`).
-4. Optional `minWordLength` (default `1`): words shorter than this get no fixation.
-5. Apostrophes inside a word count as characters (e.g. `don't` n=5 → prefix `don`). Hyphens split words, so `well-known` → `<b>we</b>ll-<b>kn</b>own`.
+1. Suppression: words consisting entirely of digits are not emphasised unless `emphasizeNumbers` is `true`.
+2. Suppression: words with fewer than `minWordLength` graphemes (default `1`) are not emphasised.
+3. `n == 1` → the single character is emphasised **only if** `s >= 3`. This applies to every script, including single-character CJK words produced by the segmenter (e.g. 我 at strength 2 gets no fixation).
+4. Otherwise `prefixLen = clamp(round_half_up(n * ratio), 1, n)`.
+5. Apostrophes inside a word count as characters (e.g. `don't` n=5 → prefix `don`). Hyphens split words, so `well-known` → `<b>we</b>ll-<b>kno</b>wn` (`known` is 5 graphemes, 2.5 rounds up to 3).
+
+A word that receives no fixation still consumes a saccade index (§4) and is emitted as plain text, never wrapped in `restTag`.
 
 `round_half_up(x)` means `floor(x + 0.5)`. Ports must use this exact rounding (not banker's rounding) so results are identical across languages.
 
@@ -53,7 +55,7 @@ Examples at default strength 3:
 | 2024 | 4 | (none) |
 | naïve | 5 | **naï**ve |
 
-An **override function** may replace the algorithm entirely:
+An **override function** may replace the algorithm entirely (all special cases included; the result is clamped to `0..n`):
 `fixationLength(word: string, graphemeCount: number, options) => number`.
 
 ## 3. Tokenizer
@@ -106,7 +108,9 @@ Rules:
 * `toHtml` escapes `<`, `>`, `&`, `"` in **text** it emits. Existing tags are passed through verbatim when `ignoreHtmlTags` is `true`.
 * `saccade` counts **word** tokens only; the first word of the input always gets a fixation (index 0 mod saccade).
 * Numbers count towards saccade indexing even when not emphasised.
-* Output must be stable: `toHtml(x)` twice yields identical strings, and `tokenize` on already-emphasised HTML (with `ignoreHtmlTags: true`) does not double-wrap.
+* When `ignoreHtmlTags` is `true`, the emphasis `tag` and `restTag` themselves are implicitly added to `skipTags`, so already-emphasised markup is never nested: `<b>Smooth</b> reading` → `<b>Smooth</b> <b>read</b>ing`. Full idempotence of `toHtml(toHtml(x))` is **not** guaranteed, because the un-emphasised remainder of a word is plain text and gets emphasised on the second pass. `applyToElement` is idempotent: it marks the wrappers it creates and skips them on re-application.
+* Entities: with `ignoreHtmlTags: true`, existing character references (`&amp;`, `&#x27;`, …) are passed through verbatim and act as word boundaries; a bare `&` that does not start a reference is escaped. With `ignoreHtmlTags: false`, every `&` is escaped. A `<` only starts markup when followed by a letter, `/`, `!` or `?`; otherwise it is text and escaped.
+* `toHtml` output is deterministic: the same input and options always produce the same string.
 
 ## 5. CSS
 
