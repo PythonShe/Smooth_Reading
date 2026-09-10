@@ -114,7 +114,7 @@ describe('defaults', () => {
     expect(defaults.minWordLength).toBe(1);
     expect(defaults.emphasizeNumbers).toBe(false);
     expect(defaults.locale).toBeUndefined();
-    expect(defaults.fixationLength).toBe(fixationLength);
+    expect(defaults.fixationLength).toBeUndefined();
   });
 });
 

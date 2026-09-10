@@ -29,7 +29,7 @@ describe('shared fixtures: common', () => {
   }
 });
 
-describe.skipIf(!usesIntlSegmenter)('shared fixtures: segmenter', () => {
+describe.skipIf(!usesIntlSegmenter())('shared fixtures: segmenter', () => {
   for (const { file, cases } of loadFixtures('segmenter')) {
     describe(file, () => {
       for (const fixture of cases) {

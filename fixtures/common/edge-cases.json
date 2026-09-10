@@ -61,11 +61,11 @@
   },
   {
     "name": "combining marks count as one grapheme (decomposed naive)",
-    "input": "nai\u0308ve reading",
+    "input": "naïve reading",
     "options": {
       "fixation": 3
     },
-    "html": "<b>nai\u0308</b>ve <b>read</b>ing"
+    "html": "<b>naï</b>ve <b>read</b>ing"
   },
   {
     "name": "emoji between words is a separator",
@@ -93,11 +93,11 @@
   },
   {
     "name": "Arabic (RTL): the bold prefix is the logical start of the word",
-    "input": "\u0645\u0631\u062d\u0628\u0627 \u0628\u0627\u0644\u0639\u0627\u0644\u0645",
+    "input": "مرحبا بالعالم",
     "options": {
       "fixation": 3
     },
-    "html": "<b>\u0645\u0631\u062d</b>\u0628\u0627 <b>\u0628\u0627\u0644\u0639</b>\u0627\u0644\u0645"
+    "html": "<b>مرح</b>با <b>بالع</b>الم"
   },
   {
     "name": "ampersand and angle brackets are escaped when tags are not ignored",
@@ -150,5 +150,103 @@
       "ignoreHtmlTags": false
     },
     "html": "&lt;<b>p</b>&gt;<b>H</b>i&lt;/<b>p</b>&gt;"
+  },
+  {
+    "name": "existing character reference passes through verbatim (ignoreHtmlTags)",
+    "input": "Tom &amp; Jerry",
+    "options": {
+      "fixation": 3
+    },
+    "html": "<b>To</b>m &amp; <b>Jer</b>ry"
+  },
+  {
+    "name": "character reference is a word boundary",
+    "input": "don&#x27;t stop",
+    "options": {
+      "fixation": 3
+    },
+    "html": "<b>do</b>n&#x27;<b>t</b> <b>st</b>op"
+  },
+  {
+    "name": "words split by a character reference each consume a saccade index",
+    "input": "don&#x27;t stop now",
+    "options": {
+      "fixation": 3,
+      "saccade": 2
+    },
+    "html": "<b>do</b>n&#x27;t <b>st</b>op now"
+  },
+  {
+    "name": "bare ampersand is escaped even when tags are ignored",
+    "input": "Tom & Jerry",
+    "options": {
+      "fixation": 3
+    },
+    "html": "<b>To</b>m &amp; <b>Jer</b>ry"
+  },
+  {
+    "name": "ampersand without a semicolon is not a reference",
+    "input": "AT&T works",
+    "options": {
+      "fixation": 3
+    },
+    "html": "<b>A</b>T&amp;<b>T</b> <b>wor</b>ks"
+  },
+  {
+    "name": "decimal reference between words",
+    "input": "&#169; 2024 Smooth",
+    "options": {
+      "fixation": 3
+    },
+    "html": "&#169; 2024 <b>Smo</b>oth"
+  },
+  {
+    "name": "character reference is escaped as text when tags are not ignored",
+    "input": "Tom &amp; Jerry",
+    "options": {
+      "fixation": 3,
+      "ignoreHtmlTags": false
+    },
+    "html": "<b>To</b>m &amp;<b>am</b>p; <b>Jer</b>ry"
+  },
+  {
+    "name": "angle bracket before a digit or space is text even when tags are ignored",
+    "input": "5 < 6 and a<3",
+    "options": {
+      "fixation": 3
+    },
+    "html": "5 &lt; 6 <b>an</b>d <b>a</b>&lt;3"
+  },
+  {
+    "name": "lone closing angle bracket is text",
+    "input": "x > y",
+    "options": {
+      "fixation": 3
+    },
+    "html": "<b>x</b> &gt; <b>y</b>"
+  },
+  {
+    "name": "declaration, processing instruction and closing tag pass through",
+    "input": "<?xml version=\"1.0\"?><!DOCTYPE html><p>Hi</p>",
+    "options": {
+      "fixation": 3
+    },
+    "html": "<?xml version=\"1.0\"?><!DOCTYPE html><p><b>H</b>i</p>"
+  },
+  {
+    "name": "comment passes through with its text untouched",
+    "input": "<!-- not reading --> reading",
+    "options": {
+      "fixation": 3
+    },
+    "html": "<!-- not reading --> <b>read</b>ing"
+  },
+  {
+    "name": "only decimal digits count as numbers: a letter-number is a word, non-ASCII digits are not",
+    "input": "Ⅻ ٤٢ ３",
+    "options": {
+      "fixation": 3
+    },
+    "html": "<b>Ⅻ</b> ٤٢ ３"
   }
 ]

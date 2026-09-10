@@ -1,5 +1,6 @@
-import { resolveRenderOptions, type ResolvedRenderOptions } from './defaults.js';
-import { createState, tokenizeWithState, type TokenizeState } from './tokenize.js';
+import { resolveMarkupOptions, type ResolvedMarkupOptions } from './defaults.js';
+import { findEntityEnd, findTagEnd, isTagStart } from './markup.js';
+import { tokenizeWithState, type TokenizeState } from './tokenize.js';
 import type { HtmlOptions, Token } from './types.js';
 
 const ESCAPES: Readonly<Record<string, string>> = {
@@ -20,51 +21,24 @@ function openTag(name: string, className: string | undefined): string {
     : `<${name} class="${escapeHtml(className)}">`;
 }
 
-/** Render a single token to markup. */
-export function renderToken(token: Token, opts: ResolvedRenderOptions): string {
-  if (token.type === 'separator') return escapeHtml(token.text);
-  if (token.fixation === 0) return escapeHtml(token.text);
+function renderToken(token: Token, opts: ResolvedMarkupOptions): string {
+  if (token.type === 'separator' || token.fixation === 0) return escapeHtml(token.text);
 
   const head =
-    openTag(opts.tag, opts.className) +
-    escapeHtml(token.fixationText) +
-    `</${opts.tag}>`;
+    openTag(opts.tag, opts.className) + escapeHtml(token.fixationText) + `</${opts.tag}>`;
   if (token.restText === '') return head;
-  const rest =
-    opts.restTag === undefined
-      ? escapeHtml(token.restText)
-      : openTag(opts.restTag, opts.restClassName) +
-        escapeHtml(token.restText) +
-        `</${opts.restTag}>`;
-  return head + rest;
+  if (opts.restTag === undefined) return head + escapeHtml(token.restText);
+  return (
+    head +
+    openTag(opts.restTag, opts.restClassName) +
+    escapeHtml(token.restText) +
+    `</${opts.restTag}>`
+  );
 }
 
-function renderText(
-  text: string,
-  opts: ResolvedRenderOptions,
-  state: TokenizeState,
-): string {
-  let out = '';
-  for (const token of tokenizeWithState(text, opts, state)) {
-    out += renderToken(token, opts);
-  }
-  return out;
-}
-
-const TAG_RE = /<[^>]*>/g;
+/** Where the next tag or character reference *might* start. */
+const SPECIAL_RE = /[<&]/g;
 const TAG_NAME_RE = /^<\s*(\/?)\s*([a-zA-Z][^\s/>]*)/;
-
-/**
- * Elements whose contents are never rewritten: the configured `skipTags` plus
- * the emphasis tag itself, so that markup which is already emphasised is never
- * wrapped a second time (SPEC §4, "does not double-wrap").
- */
-function skipSet(opts: ResolvedRenderOptions): Set<string> {
-  const set = new Set<string>();
-  for (const name of opts.skipTags) set.add(name.toLowerCase());
-  set.add(opts.tag.toLowerCase());
-  return set;
-}
 
 /**
  * Stateful HTML renderer.
@@ -75,43 +49,58 @@ function skipSet(opts: ResolvedRenderOptions): Set<string> {
  * chunk after chunk, which is why the two produce identical output.
  */
 export class HtmlRenderer {
-  readonly opts: ResolvedRenderOptions;
   readonly ignoreHtmlTags: boolean;
+  private readonly opts: ResolvedMarkupOptions;
   private readonly skip: Set<string>;
-  private readonly state: TokenizeState;
+  private readonly state: TokenizeState = { wordIndex: 0 };
   private skipName: string | null = null;
   private skipDepth = 0;
 
   constructor(options?: HtmlOptions) {
-    this.opts = resolveRenderOptions(options);
+    this.opts = resolveMarkupOptions(options);
     this.ignoreHtmlTags = options?.ignoreHtmlTags ?? true;
-    this.skip = skipSet(this.opts);
-    this.state = createState();
+    // The emphasis tags themselves are skipped so that already-emphasised
+    // markup is never wrapped a second time (SPEC §4).
+    this.skip = new Set(this.opts.skipTags.map((name) => name.toLowerCase()));
+    this.skip.add(this.opts.tag.toLowerCase());
+    if (this.opts.restTag !== undefined) this.skip.add(this.opts.restTag.toLowerCase());
   }
 
   /**
    * Render one complete piece of input. The caller must guarantee that the
-   * piece does not end in the middle of a word or a tag.
+   * piece does not end in the middle of a word, a tag or a character reference.
    */
   render(text: string): string {
     if (text === '') return '';
-    if (!this.ignoreHtmlTags) return renderText(text, this.opts, this.state);
+    if (!this.ignoreHtmlTags) return this.renderText(text);
 
     let out = '';
     let cursor = 0;
-    TAG_RE.lastIndex = 0;
-    for (let match = TAG_RE.exec(text); match !== null; match = TAG_RE.exec(text)) {
-      const before = text.slice(cursor, match.index);
-      out += this.skipName === null ? renderText(before, this.opts, this.state) : before;
+    SPECIAL_RE.lastIndex = 0;
+    for (let m = SPECIAL_RE.exec(text); m !== null; m = SPECIAL_RE.exec(text)) {
+      const start = m.index;
+      const isTag = text.charCodeAt(start) === 0x3c; /* < */
+      if (isTag && !isTagStart(text, start)) continue;
+      const end = isTag ? findTagEnd(text, start) : findEntityEnd(text, start);
+      if (end < 0) continue; // unterminated: plain text
 
-      const raw = match[0];
-      out += raw;
-      cursor = match.index + raw.length;
-      this.consumeTag(raw);
+      out += this.renderText(text.slice(cursor, start));
+      const raw = text.slice(start, end);
+      out += raw; // verbatim
+      if (isTag) this.consumeTag(raw);
+      cursor = end;
+      SPECIAL_RE.lastIndex = end;
     }
+    return out + this.renderText(text.slice(cursor));
+  }
 
-    const tail = text.slice(cursor);
-    out += this.skipName === null ? renderText(tail, this.opts, this.state) : tail;
+  /** Tokenize and render text, or pass it through when inside a skipped element. */
+  private renderText(text: string): string {
+    if (text === '' || this.skipName !== null) return text;
+    let out = '';
+    for (const token of tokenizeWithState(text, this.opts, this.state)) {
+      out += renderToken(token, this.opts);
+    }
     return out;
   }
 
@@ -122,23 +111,19 @@ export class HtmlRenderer {
     const name = (parsed[2] ?? '').toLowerCase();
     const selfClosing = /\/\s*>$/.test(raw);
 
-    if (this.skipName !== null) {
-      if (name !== this.skipName || selfClosing) return;
-      if (closing) {
-        this.skipDepth -= 1;
-        if (this.skipDepth <= 0) {
-          this.skipName = null;
-          this.skipDepth = 0;
-        }
-      } else {
-        this.skipDepth += 1;
+    if (this.skipName === null) {
+      if (!closing && !selfClosing && this.skip.has(name)) {
+        this.skipName = name;
+        this.skipDepth = 1;
       }
       return;
     }
-
-    if (!closing && !selfClosing && this.skip.has(name)) {
-      this.skipName = name;
-      this.skipDepth = 1;
+    if (name !== this.skipName || selfClosing) return;
+    if (!closing) {
+      this.skipDepth += 1;
+    } else if ((this.skipDepth -= 1) <= 0) {
+      this.skipName = null;
+      this.skipDepth = 0;
     }
   }
 }
@@ -147,11 +132,16 @@ export class HtmlRenderer {
  * Turn `text` into HTML, emphasising the fixation prefix of every word
  * (SPEC §4).
  *
- * With `ignoreHtmlTags: true` (the default) anything that looks like a tag is
- * passed through verbatim and never escaped; the text between tags is
- * tokenized. Text inside `skipTags` elements — and inside elements using the
- * emphasis `tag` — is emitted exactly as it was, so already-emphasised markup is
- * never wrapped twice.
+ * With `ignoreHtmlTags: true` (the default) tags and character references are
+ * passed through verbatim and the text between them is tokenized; text inside
+ * `skipTags` — and inside `tag`/`restTag` elements — is left exactly as it was,
+ * so already-emphasised markup is never wrapped twice. With
+ * `ignoreHtmlTags: false` the input is plain text and fully escaped.
+ *
+ * @example
+ * ```ts
+ * toHtml('Smooth reading works.'); // '<b>Smo</b>oth <b>read</b>ing <b>wor</b>ks.'
+ * ```
  */
 export function toHtml(text: string, options?: HtmlOptions): string {
   return new HtmlRenderer(options).render(text);

@@ -19,6 +19,8 @@ jobs:
       - run: pnpm build
       - run: pnpm typecheck
       - run: pnpm test
+      - run: pnpm pack:check
+      - run: pnpm build:examples
 
   python:
     name: Python package

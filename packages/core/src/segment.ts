@@ -1,39 +1,68 @@
 /**
  * Segmentation primitives (SPEC §3).
  *
- * `Intl.Segmenter` is preferred when the runtime has it: it gives
- * dictionary-based word breaks for Chinese, Japanese, Khmer, Lao and Thai and
- * correct Unicode word-break rules everywhere else. When it is missing we fall
- * back to the regular expression the spec prescribes, which every non-JS port
- * also implements.
+ * `Intl.Segmenter` is preferred when the runtime has it: dictionary-based word
+ * breaks for Chinese, Japanese and Thai and correct Unicode word-break rules
+ * everywhere else. Otherwise we fall back to the regular expression the spec
+ * prescribes, which every non-JS port also implements.
+ *
+ * Availability is checked at *call* time, never at module load, so the module
+ * can be imported in any runtime (React Native/Hermes included) and never
+ * throws even when `Intl` is partially implemented.
  */
+
+/** SPEC §3 fallback tokenizer: apostrophes join, hyphens split. */
+const WORD_RE = /[\p{L}\p{N}\p{M}]+(?:['’][\p{L}\p{N}\p{M}]+)*/gu;
+
+type Granularity = 'word' | 'grapheme';
+
+const cache: Record<Granularity, Map<string, Intl.Segmenter>> = {
+  word: new Map(),
+  grapheme: new Map(),
+};
 
 /**
- * SPEC §3 fallback tokenizer. Mirrors ICU's default word-break rules for
- * Latin-like text: apostrophes join, hyphens split.
+ * Whether this runtime segments with `Intl.Segmenter` (evaluated now, not at
+ * import time). When `false`, the SPEC §3 regex fallback is used for word
+ * breaks and grapheme clusters are approximated as base + combining marks.
+ *
+ * @example
+ * ```ts
+ * if (!usesIntlSegmenter()) console.warn('CJK text will not be word-broken');
+ * ```
  */
-export const WORD_RE = /[\p{L}\p{N}\p{M}]+(?:['’][\p{L}\p{N}\p{M}]+)*/gu;
-
-const hasSegmenter =
-  typeof Intl !== 'undefined' && typeof Intl.Segmenter === 'function';
-
-/** `true` when this runtime segments with `Intl.Segmenter`. */
-export const usesIntlSegmenter: boolean = hasSegmenter;
-
-const wordSegmenters = new Map<string, Intl.Segmenter>();
-const graphemeSegmenters = new Map<string, Intl.Segmenter>();
-
-function getSegmenter(
-  cache: Map<string, Intl.Segmenter>,
-  locale: string | undefined,
-  granularity: 'word' | 'grapheme',
-): Intl.Segmenter {
-  const key = locale ?? '';
-  let segmenter = cache.get(key);
-  if (!segmenter) {
-    segmenter = new Intl.Segmenter(locale, { granularity });
-    cache.set(key, segmenter);
+export function usesIntlSegmenter(): boolean {
+  try {
+    return typeof Intl !== 'undefined' && typeof Intl.Segmenter === 'function';
+  } catch {
+    return false;
   }
+}
+
+/**
+ * A cached segmenter, or `null` when the runtime cannot provide one. An
+ * invalid `locale` falls back to the runtime default rather than throwing.
+ */
+function getSegmenter(
+  granularity: Granularity,
+  locale: string | undefined,
+): Intl.Segmenter | null {
+  if (!usesIntlSegmenter()) return null;
+  const key = locale ?? '';
+  const map = cache[granularity];
+  const cached = map.get(key);
+  if (cached) return cached;
+  let segmenter: Intl.Segmenter | null = null;
+  try {
+    segmenter = new Intl.Segmenter(locale, { granularity });
+  } catch {
+    try {
+      segmenter = new Intl.Segmenter(undefined, { granularity });
+    } catch {
+      segmenter = null;
+    }
+  }
+  if (segmenter) map.set(key, segmenter);
   return segmenter;
 }
 
@@ -45,8 +74,7 @@ export interface RawSegment {
 
 /**
  * Split `text` into word / non-word segments. Consecutive non-word segments are
- * merged into a single separator so that both code paths (segmenter and regex)
- * produce the same token stream.
+ * merged into one separator so both code paths produce the same token stream.
  */
 export function segmentWords(text: string, locale: string | undefined): RawSegment[] {
   if (text === '') return [];
@@ -61,8 +89,8 @@ export function segmentWords(text: string, locale: string | undefined): RawSegme
     }
   };
 
-  if (hasSegmenter) {
-    const segmenter = getSegmenter(wordSegmenters, locale, 'word');
+  const segmenter = getSegmenter('word', locale);
+  if (segmenter) {
     for (const segment of segmenter.segment(text)) {
       if (segment.isWordLike === true) {
         out.push({ text: segment.segment, isWord: true });
@@ -85,22 +113,23 @@ export function segmentWords(text: string, locale: string | undefined): RawSegme
 }
 
 /**
- * Split a string into grapheme clusters (SPEC §3). Falls back to code points,
- * which keeps surrogate pairs intact but may split combining marks on very old
- * runtimes.
+ * SPEC §3 fallback grapheme clustering, identical to the Python port: a code
+ * point plus any following combining marks (`\p{M}`, which includes variation
+ * selectors), a ZWJ joins the next code point, and CR LF is one cluster.
+ * Regional-indicator pairs and Hangul jamo are not composed, but neither can
+ * occur inside a word token produced by {@link WORD_RE}.
+ */
+const GRAPHEME_RE = /\r\n|.(?:\p{M}|\u200D.?)*/gsu;
+
+/**
+ * Split a string into grapheme clusters (SPEC §3): `Intl.Segmenter` when
+ * available, otherwise the {@link GRAPHEME_RE} approximation.
  */
 export function toGraphemes(text: string, locale: string | undefined): string[] {
   if (text === '') return [];
-  if (hasSegmenter) {
-    const segmenter = getSegmenter(graphemeSegmenters, locale, 'grapheme');
-    const out: string[] = [];
-    for (const segment of segmenter.segment(text)) out.push(segment.segment);
-    return out;
-  }
-  return Array.from(text);
-}
-
-/** Number of user-perceived characters in `text`. */
-export function countGraphemes(text: string, locale: string | undefined): number {
-  return toGraphemes(text, locale).length;
+  const segmenter = getSegmenter('grapheme', locale);
+  if (!segmenter) return text.match(GRAPHEME_RE) ?? [];
+  const out: string[] = [];
+  for (const segment of segmenter.segment(text)) out.push(segment.segment);
+  return out;
 }

@@ -1,11 +1,9 @@
 import type { Fixation, ResolvedSmoothOptions } from './types.js';
 
 /**
- * Fixation ratios from SPEC §2, expressed in *percent* so the whole
- * computation can be done in integer arithmetic. Floating point
- * `floor(n * 0.35 + 0.5)` is representation-dependent near .5 boundaries;
- * `floor((n * 35 + 50) / 100)` is exactly the same value and is reproducible
- * in every language a port might use.
+ * Fixation ratios from SPEC §2 in *percent*, so the whole computation is
+ * integer arithmetic: `floor((n * percent + 50) / 100)` is exactly
+ * `round_half_up(n * ratio)` and reproducible in every port.
  */
 const RATIO_PERCENT: Readonly<Record<Fixation, number>> = {
   1: 20,
@@ -15,30 +13,24 @@ const RATIO_PERCENT: Readonly<Record<Fixation, number>> = {
   5: 80,
 };
 
-const ALL_DIGITS = /^\p{N}+$/u;
-
-/** `true` when the word consists entirely of digits (SPEC §2 rule 3). */
-export function isNumeric(word: string): boolean {
-  return ALL_DIGITS.test(word);
-}
-
-/** `round_half_up(n * ratio)` from SPEC §2, in exact integer arithmetic. */
-export function roundHalfUpRatio(graphemes: number, fixation: Fixation): number {
-  const percent = RATIO_PERCENT[fixation] ?? RATIO_PERCENT[3];
-  return Math.floor((graphemes * percent + 50) / 100);
-}
+/** "Entirely digits" (SPEC §2 rule 1): decimal digits of any script, not ½ or Ⅻ. */
+const ALL_DIGITS = /^\p{Nd}+$/u;
 
 /**
- * The default fixation-length algorithm (SPEC §2).
+ * The built-in fixation-length algorithm (SPEC §2): how many leading grapheme
+ * clusters of `word` to emphasise, `0` meaning none.
  *
- * Exported so that ports and adapters can reuse it, and so that a custom
- * `options.fixationLength` can delegate to it for the cases it does not care
- * about.
+ * Exported so a custom `fixationLength` override can delegate to it for the
+ * cases it does not care about.
  *
- * @param word       the word, exactly as tokenized
+ * @param word       the word exactly as tokenized
  * @param graphemes  number of user-perceived characters in `word`
- * @param opts       fully resolved options
- * @returns how many *grapheme clusters* to emphasise (`0` = no fixation)
+ * @param opts       fully resolved options (spread {@link defaults} to build one)
+ *
+ * @example
+ * ```ts
+ * fixationLength('reading', 7, defaults); // 4
+ * ```
  */
 export function fixationLength(
   word: string,
@@ -47,10 +39,11 @@ export function fixationLength(
 ): number {
   const n = graphemes;
   if (n <= 0) return 0;
-  if (!opts.emphasizeNumbers && isNumeric(word)) return 0;
+  if (!opts.emphasizeNumbers && ALL_DIGITS.test(word)) return 0;
   if (n < opts.minWordLength) return 0;
   if (n === 1) return opts.fixation >= 3 ? 1 : 0;
 
-  const raw = roundHalfUpRatio(n, opts.fixation);
+  const percent = RATIO_PERCENT[opts.fixation] ?? RATIO_PERCENT[3];
+  const raw = Math.floor((n * percent + 50) / 100);
   return Math.min(Math.max(raw, 1), n);
 }

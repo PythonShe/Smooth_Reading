@@ -1,0 +1,72 @@
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Noto Sans CJK SC",
+    "Noto Sans Thai", sans-serif;
+  line-height: 1.6;
+}
+
+body {
+  margin: 0;
+  padding: 1.5rem;
+}
+
+.app {
+  max-width: 64rem;
+  margin: 0 auto;
+}
+
+h1 {
+  margin: 0 0 0.25rem;
+  font-size: 1.5rem;
+}
+
+.lede {
+  margin: 0 0 1.5rem;
+  opacity: 0.8;
+}
+
+.controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.controls label {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.controls input[type="range"] {
+  width: 100%;
+}
+
+.panes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+  gap: 1rem;
+}
+
+textarea {
+  width: 100%;
+  min-height: 24rem;
+  padding: 1rem;
+  box-sizing: border-box;
+  font: inherit;
+  resize: vertical;
+}
+
+.preview {
+  padding: 1rem;
+  border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+  border-radius: 0.5rem;
+  font-size: 1.125rem;
+}
+
+.preview p {
+  margin: 0 0 1em;
+}
+
+.preview p:last-child {
+  margin-bottom: 0;
+}

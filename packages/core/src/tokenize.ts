@@ -1,6 +1,7 @@
 import { resolveSmoothOptions } from './defaults.js';
+import { fixationLength } from './fixation.js';
 import { segmentWords, toGraphemes } from './segment.js';
-import type { ResolvedSmoothOptions, SmoothOptions, Token } from './types.js';
+import type { ResolvedSmoothOptions, SmoothOptions, Token, WordToken } from './types.js';
 
 /**
  * Saccade bookkeeping. `toHtml` shares one counter across the whole input
@@ -11,17 +12,20 @@ export interface TokenizeState {
   wordIndex: number;
 }
 
-/** A fresh saccade counter. */
-export function createState(): TokenizeState {
-  return { wordIndex: 0 };
-}
-
 /**
  * Split `text` into words and separators and compute each word's fixation
- * prefix (SPEC §3, §4).
+ * prefix (SPEC §3, §4). Concatenating `token.text` gives `text` back.
+ *
+ * @example
+ * ```ts
+ * tokenize('Smooth reading');
+ * // [ { type: 'word', text: 'Smooth', fixation: 3, fixationText: 'Smo', restText: 'oth' },
+ * //   { type: 'separator', text: ' ' },
+ * //   { type: 'word', text: 'reading', fixation: 4, fixationText: 'read', restText: 'ing' } ]
+ * ```
  */
 export function tokenize(text: string, options?: SmoothOptions): Token[] {
-  return tokenizeWithState(text, resolveSmoothOptions(options), createState());
+  return tokenizeWithState(text, resolveSmoothOptions(options), { wordIndex: 0 });
 }
 
 /** `tokenize`, but with an externally owned saccade counter. */
@@ -32,11 +36,11 @@ export function tokenizeWithState(
 ): Token[] {
   const tokens: Token[] = [];
   for (const segment of segmentWords(text, opts.locale)) {
-    if (!segment.isWord) {
-      tokens.push({ type: 'separator', text: segment.text });
-      continue;
-    }
-    tokens.push(makeWordToken(segment.text, opts, state));
+    tokens.push(
+      segment.isWord
+        ? makeWordToken(segment.text, opts, state)
+        : { type: 'separator', text: segment.text },
+    );
   }
   return tokens;
 }
@@ -45,22 +49,20 @@ function makeWordToken(
   word: string,
   opts: ResolvedSmoothOptions,
   state: TokenizeState,
-): Token {
-  const graphemes = toGraphemes(word, opts.locale);
-  // Saccade counts *every* word token, including numbers and words that are too
-  // short to be emphasised (SPEC §4).
+): WordToken {
+  // Every word token consumes a saccade index, including numbers and words
+  // that are too short to be emphasised (SPEC §4).
   const onSaccade = state.wordIndex % opts.saccade === 0;
   state.wordIndex += 1;
+  if (!onSaccade) return plain(word);
 
-  if (!onSaccade) {
-    return { type: 'word', text: word, fixation: 0, fixationText: '', restText: word };
-  }
-
-  const requested = opts.fixationLength(word, graphemes.length, opts);
-  const fixation = clamp(Math.trunc(requested), 0, graphemes.length);
-  if (fixation === 0) {
-    return { type: 'word', text: word, fixation: 0, fixationText: '', restText: word };
-  }
+  const graphemes = toGraphemes(word, opts.locale);
+  const algorithm = opts.fixationLength ?? fixationLength;
+  const requested = Math.trunc(algorithm(word, graphemes.length, opts));
+  const fixation = Number.isFinite(requested)
+    ? Math.min(Math.max(requested, 0), graphemes.length)
+    : 0;
+  if (fixation === 0) return plain(word);
   return {
     type: 'word',
     text: word,
@@ -70,7 +72,6 @@ function makeWordToken(
   };
 }
 
-function clamp(value: number, min: number, max: number): number {
-  if (!Number.isFinite(value)) return min;
-  return Math.min(Math.max(value, min), max);
+function plain(word: string): WordToken {
+  return { type: 'word', text: word, fixation: 0, fixationText: '', restText: word };
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { escapeHtml, toHtml } from '../src/index.js';
+import { toHtml } from '../src/index.js';
+import { escapeHtml } from '../src/html.js';
 
 describe('escapeHtml', () => {
   it('escapes the four characters SPEC section 4 lists', () => {

@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Smooth Reading playground</title>
+  </head>
+  <body>
+    <main class="app">
+      <header>
+        <h1>Smooth Reading</h1>
+        <p class="lede">
+          Guided fixation reading: the first part of every word is emphasised so the eye has an
+          artificial fixation point. Edit the text and move the sliders.
+        </p>
+      </header>
+
+      <section class="controls" aria-label="Options">
+        <label>
+          <span>Fixation <output id="fixation-out">3</output></span>
+          <input id="fixation" type="range" min="1" max="5" step="1" value="3" />
+        </label>
+        <label>
+          <span>Saccade <output id="saccade-out">1</output></span>
+          <input id="saccade" type="range" min="1" max="5" step="1" value="1" />
+        </label>
+        <label>
+          <span>Rest opacity <output id="opacity-out">1.00</output></span>
+          <input id="opacity" type="range" min="0.3" max="1" step="0.05" value="1" />
+        </label>
+      </section>
+
+      <section class="panes">
+        <textarea id="input" aria-label="Input text" spellcheck="false"></textarea>
+        <article id="preview" class="preview" aria-live="polite"></article>
+      </section>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

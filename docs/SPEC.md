@@ -66,7 +66,7 @@ An **override function** may replace the algorithm entirely (all special cases i
   This mirrors ICU's default word-break rules for Latin-like text (apostrophe joins, hyphen splits), so `Intl.Segmenter` and the regex produce identical tokens for every `common` fixture. `common` fixtures avoid inputs where ICU and the regex are known to differ (decimal numbers such as `3.14`, underscores, emoji).
   Runs of CJK ideographs (`\p{Script=Han}`, Hiragana, Katakana, Hangul) and Thai are treated as one word per **run**, and the uniform §2 rules apply to that run. Ports document which tokenizer they use; fixtures are split into `fixtures/common/*` (must match in every port) and `fixtures/segmenter/*` (only required when `Intl.Segmenter` is used).
 * The `locale` option (BCP-47 string, default `undefined` → runtime default) is passed straight to the segmenter.
-* Grapheme clusters are counted with `Intl.Segmenter(locale, { granularity: "grapheme" })` when available, otherwise by code points (`Array.from(word).length`). Combining marks therefore never get split from their base.
+* Grapheme clusters are counted with `Intl.Segmenter(locale, { granularity: "grapheme" })` when available. Otherwise ports use the same approximation: a code point plus any following combining marks (general categories `Mn`, `Mc`, `Me`) is one cluster, a ZWJ (U+200D) joins the next code point, and CR LF is one cluster. Combining marks therefore never get split from their base on either path, and `common` fixtures such as decomposed `naïve` pass everywhere.
 
 ## 4. Public API (core)
 

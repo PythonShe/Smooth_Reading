@@ -1,7 +1,7 @@
 {
   "name": "@smooth-reading/core",
   "version": "0.1.0",
-  "description": "Zero-dependency guided fixation reading: emphasise the first part of every word so the eye gets an artificial fixation point.",
+  "description": "Zero-dependency guided fixation reading: emphasise the first part of every word so the eye gets an artificial fixation point. Unicode-aware, streaming, ESM + CJS.",
   "license": "Apache-2.0",
   "type": "module",
   "sideEffects": false,
@@ -32,8 +32,19 @@
     "accessibility",
     "text",
     "html",
-    "intl-segmenter"
+    "intl-segmenter",
+    "unicode",
+    "streaming"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PythonShe/Smooth_Reading.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/PythonShe/Smooth_Reading/tree/main/packages/core#readme",
+  "bugs": {
+    "url": "https://github.com/PythonShe/Smooth_Reading/issues"
+  },
   "engines": {
     "node": ">=18"
   },
@@ -41,15 +52,16 @@
     "access": "public"
   },
   "scripts": {
-    "build": "tsup",
+    "build": "tsdown",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "pack:check": "node scripts/pack-check.mjs"
   },
   "devDependencies": {
-    "@types/node": "^22.20.1",
-    "happy-dom": "^20.0.0",
-    "tsup": "^8.5.1",
-    "typescript": "^5.9.0",
+    "@types/node": "^22.20.2",
+    "happy-dom": "^20.14.3",
+    "tsdown": "^0.23.0",
+    "typescript": "^7.0.2",
     "vitest": "^5.0.0"
   }
 }

@@ -6,19 +6,20 @@
  * `fixtures/common`.
  */
 
-export { defaults, defaultSkipTags, defaultTag } from './defaults.js';
-export { fixationLength, isNumeric, roundHalfUpRatio } from './fixation.js';
-export { escapeHtml, toHtml } from './html.js';
 export { tokenize } from './tokenize.js';
+export { toHtml } from './html.js';
 export { applyToElement } from './dom.js';
 export { createTransformStream } from './stream.js';
-export { usesIntlSegmenter, WORD_RE } from './segment.js';
+export { fixationLength } from './fixation.js';
+export { defaults, defaultSkipTags } from './defaults.js';
+export { usesIntlSegmenter } from './segment.js';
 
 export type {
   DomOptions,
   Fixation,
   FixationLengthFn,
   HtmlOptions,
+  MarkupOptions,
   ResolvedSmoothOptions,
   SeparatorToken,
   SmoothOptions,

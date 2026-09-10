@@ -1,81 +1,116 @@
 import { HtmlRenderer } from './html.js';
+import { blockAt, isTagStart, isWhitespace, MAX_OPENER } from './markup.js';
 import type { HtmlOptions } from './types.js';
 
 /**
- * Find how much of `buffer` can safely be rendered right now.
+ * Incremental scanner that finds how much of a growing buffer can be rendered
+ * right now without splitting a word, a grapheme cluster, a tag or a character
+ * reference.
  *
- * Safe means: the cut is on a whitespace boundary (so no word — and no
- * apostrophe- or combining-mark-joined word — is split), and it is not inside
- * an unterminated `<...>` tag.
- *
- * @returns the number of leading characters that may be flushed (may be `0`)
+ * A cut is only ever placed right after whitespace, and only outside markup.
+ * Words, apostrophe-joined words, combining marks, surrogate pairs and
+ * `&entity;` references contain no whitespace, so they are never split;
+ * `\r\n` (a single grapheme cluster) is kept together explicitly. Every
+ * character is examined once, so a stream of any length costs linear time.
  */
-export function safeCutIndex(buffer: string, ignoreHtmlTags: boolean): number {
-  let best = 0;
-  let inTag = false;
-  for (let i = 0; i < buffer.length; i += 1) {
-    const code = buffer.charCodeAt(i);
-    if (ignoreHtmlTags) {
-      if (inTag) {
-        if (code === 0x3e /* > */) inTag = false;
-        continue;
-      }
-      if (code === 0x3c /* < */) {
-        inTag = true;
-        continue;
+class CutScanner {
+  private mode: 'text' | 'tag' | 'block' = 'text';
+  /** Terminator of the comment/CDATA block being scanned. */
+  private terminator = '';
+  /** Characters of the current buffer already examined. */
+  private scanned = 0;
+
+  constructor(private readonly html: boolean) {}
+
+  /** Number of leading characters of `buffer` that may be rendered now. */
+  cut(buffer: string): number {
+    let best = 0;
+    let i = this.scanned;
+    const n = buffer.length;
+    scan: while (i < n) {
+      const code = buffer.charCodeAt(i);
+      switch (this.mode) {
+        case 'tag':
+          if (code === 0x3e /* > */) this.mode = 'text';
+          i += 1;
+          break;
+        case 'block':
+          if (n - i < this.terminator.length) break scan; // need the whole terminator
+          if (buffer.startsWith(this.terminator, i)) {
+            this.mode = 'text';
+            i += this.terminator.length;
+          } else {
+            i += 1;
+          }
+          break;
+        default:
+          if (this.html && code === 0x3c /* < */) {
+            if (n - i < MAX_OPENER) break scan; // cannot yet tell "<" from "<!--"
+            if (isTagStart(buffer, i)) {
+              const block = blockAt(buffer, i);
+              if (block) {
+                this.mode = 'block';
+                this.terminator = block[1];
+                i += block[0].length;
+              } else {
+                this.mode = 'tag';
+                i += 2;
+              }
+              break;
+            }
+          }
+          if (isWhitespace(code)) {
+            if (code === 0x0d /* \r */) {
+              if (i + 1 >= n) break scan; // "\r\n" must stay together
+              if (buffer.charCodeAt(i + 1) === 0x0a) {
+                i += 2;
+                best = i;
+                break;
+              }
+            }
+            best = i + 1;
+          }
+          i += 1;
       }
     }
-    if (isWhitespace(code)) best = i + 1;
+    this.scanned = i - best;
+    return best;
   }
-  return best;
-}
-
-/** Space, tab, the C0 line breaks, NBSP and the Unicode space separators. */
-function isWhitespace(code: number): boolean {
-  return (
-    code === 0x20 ||
-    (code >= 0x09 && code <= 0x0d) ||
-    code === 0xa0 ||
-    code === 0x1680 ||
-    (code >= 0x2000 && code <= 0x200a) ||
-    code === 0x2028 ||
-    code === 0x2029 ||
-    code === 0x202f ||
-    code === 0x205f ||
-    code === 0x3000
-  );
 }
 
 /**
  * A WHATWG `TransformStream<string, string>` that emphasises text as it flows
- * through.
+ * through, with output identical to `toHtml` of the concatenated input.
  *
- * Only the tail after the last separator is buffered, so words are never cut in
- * half and `saccade` numbering continues across chunk boundaries. `flush` emits
+ * Only the tail after the last safe boundary is buffered, so a word is never
+ * cut in half and `saccade` numbering continues across chunks; `flush` emits
  * whatever is left.
  *
+ * @example
  * ```ts
- * await readable.pipeThrough(createTransformStream({ fixation: 4 })).pipeTo(sink);
+ * await response.body!
+ *   .pipeThrough(new TextDecoderStream())
+ *   .pipeThrough(createTransformStream({ fixation: 4 }))
+ *   .pipeTo(sink);
  * ```
  */
 export function createTransformStream(
   options?: HtmlOptions,
 ): TransformStream<string, string> {
   const renderer = new HtmlRenderer(options);
+  const scanner = new CutScanner(renderer.ignoreHtmlTags);
   let buffer = '';
 
   return new TransformStream<string, string>({
     transform(chunk, controller) {
       buffer += chunk;
-      const cut = safeCutIndex(buffer, renderer.ignoreHtmlTags);
+      const cut = scanner.cut(buffer);
       if (cut === 0) return;
-      const piece = buffer.slice(0, cut);
+      const out = renderer.render(buffer.slice(0, cut));
       buffer = buffer.slice(cut);
-      const out = renderer.render(piece);
       if (out !== '') controller.enqueue(out);
     },
     flush(controller) {
-      if (buffer === '') return;
       const out = renderer.render(buffer);
       buffer = '';
       if (out !== '') controller.enqueue(out);
