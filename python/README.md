@@ -1,25 +1,24 @@
 # smooth-reading
 
-Guided fixation reading for Python: the first few letters of every word are
-emphasised so the eye gets an artificial fixation point and the brain completes
-the rest of the word. The technique is similar to commercial fixation-reading
-products; this package is an independent Apache-2.0 implementation and is not
-affiliated with any of them.
+Guided fixation reading for Python: the leading letters of every word are emphasised so the eye lands on an artificial fixation point and the brain completes the rest of the word.
 
-The algorithm is defined by [`docs/SPEC.md`](../docs/SPEC.md) in this repository
-and is deterministic across every port, so the TypeScript, Swift, Kotlin and
-Python implementations produce byte-identical HTML for the shared fixtures.
+Similar to commercial fixation-reading products, this package is an independent, clean-room, zero-dependency Apache-2.0 implementation. The algorithm is formally defined in [`docs/SPEC.md`](../docs/SPEC.md), guaranteeing deterministic, byte-identical output with the TypeScript, Swift, and Kotlin ports across all shared fixtures.
 
-* Python 3.10+
-* **Zero runtime dependencies**
-* Fully type annotated, ships `py.typed`, passes `mypy --strict`
-* Unicode-aware: combining marks, apostrophes, and Han / Kana / Hangul runs
+- **Python 3.10+** supported.
+- **Zero runtime dependencies**: Pure Python standard library (`unicodedata`, `html`, `argparse`).
+- **Fully type-annotated**: Ships `py.typed` and passes `mypy --strict`.
+- **Unicode-aware**: Accurately handles diacritics, combining marks, contractions, and multilingual scripts.
+- **Built-in CLI**: Pipe files or stdin directly to HTML or Markdown.
 
-## Install
+---
+
+## Installation
 
 ```bash
 pip install smooth-reading
 ```
+
+---
 
 ## Examples
 
@@ -32,14 +31,16 @@ to_html("Smooth reading works.")
 # '<b>Smo</b>oth <b>read</b>ing <b>wor</b>ks.'
 ```
 
-### 2. Tune the strength, skip words, style with a class
+### 2. Configure strength, saccade intervals, and custom CSS classes
 
 ```python
 from smooth_reading import to_html
 
+# Emphasise every 2nd word at strength 5:
 to_html("Smooth reading works.", fixation=5, saccade=2)
 # '<b>Smoot</b>h reading <b>work</b>s.'
 
+# Style with semantic spans and classes:
 to_html(
     "Smooth reading",
     tag="span",
@@ -50,14 +51,14 @@ to_html(
 # '<span class="sr-fixation">Smo</span><span class="sr-rest">oth</span> <span class="sr-fixation">read</span><span class="sr-rest">ing</span>'
 ```
 
-Pair it with the stylesheet shipped by the core package:
+Pair with the core package stylesheet:
 
 ```css
 .sr-fixation { font-weight: 700; }
 .sr-rest     { opacity: var(--sr-rest-opacity, 1); }
 ```
 
-### 3. Work with tokens directly
+### 3. Work directly with tokens
 
 ```python
 from smooth_reading import tokenize
@@ -69,12 +70,9 @@ for token in tokenize("Smooth reading", fixation=4):
 # readi | ng
 ```
 
-`tokenize` returns frozen `Token` dataclasses (`type`, `text`, and for words
-`fixation`, `fixation_text`, `rest_text`), so any renderer (Rich, ReportLab, a
-template engine, a DOM builder) can be driven from them without going through
-HTML strings.
+`tokenize` returns frozen `Token` dataclasses (`WordToken` and `SeparatorToken`), allowing custom renderers (Rich terminal UI, ReportLab PDF, Jinja templates, or AST builders) to render fixation text without parsing HTML.
 
-### 4. Markdown
+### 4. Render Markdown
 
 ```python
 from smooth_reading import to_markdown
@@ -83,15 +81,15 @@ to_markdown("Smooth reading works.")
 # '**Smo**oth **read**ing **wor**ks.'
 ```
 
-## Existing markup
+---
 
-`to_html` leaves markup alone by default: tags and character references such
-as `&amp;` are passed through verbatim (a reference acts as a word boundary),
-the content of `code`, `pre`, `script`, `style`, `kbd`, `samp` and `textarea`
-is untouched (case-insensitive and nesting-aware), and everything emitted as
-text has `&`, `<`, `>` and `"` escaped. A `<` that is not followed by a letter,
-`/`, `!` or `?` is ordinary text. The emphasis `tag` and `rest_tag` are treated
-as skip tags too, so already-emphasised markup is never wrapped a second time.
+## HTML parsing and markup handling
+
+By default (`ignore_html_tags=True`), `to_html` treats the input as HTML:
+- Existing tags, comments, and character references (`&amp;`, `&#x27;`) pass through untouched and act as word boundaries.
+- Text within tags listed in `skip_tags` (`code`, `pre`, `script`, `style`, `kbd`, `samp`, `textarea`) is never altered.
+- Fixation `tag` and `rest_tag` elements are automatically protected against duplicate nesting.
+- Emitted text characters (`&`, `<`, `>`, `"`) are safely escaped.
 
 ```python
 from smooth_reading import to_html
@@ -100,63 +98,68 @@ to_html("<p>Smooth reading</p> <code>x = 1</code> <b>done</b> & gone")
 # '<p><b>Smo</b>oth <b>read</b>ing</p> <code>x = 1</code> <b>done</b> &amp; <b>go</b>ne'
 ```
 
-Pass `ignore_html_tags=False` to treat the input as plain text: every `<`, `>`
-and `&` is escaped, including the `&` of an existing character reference.
+Pass `ignore_html_tags=False` to treat the input as plain text and escape all HTML characters:
 
 ```python
-from smooth_reading import to_html
-
 to_html("Tom & Jerry <3", ignore_html_tags=False)
 # '<b>To</b>m &amp; <b>Jer</b>ry &lt;3'
 ```
 
-## CLI
+---
+
+## Command-Line Interface (CLI)
+
+The package includes a standalone CLI tool, `smooth-reading`:
 
 ```bash
+# Convert a file to HTML
 smooth-reading article.txt > article.html
+
+# Read from standard input with custom strength and saccade
 cat article.txt | smooth-reading --fixation 4 --saccade 2
-smooth-reading --markdown notes.txt      # **Smo**oth **read**ing
+
+# Generate Markdown output
+smooth-reading --markdown notes.txt
+
+# Use custom tags and classes
 smooth-reading --tag span --class sr-fixation article.txt
 ```
 
-| Flag | Default | Meaning |
+### CLI flags
+
+| Flag | Default | Description |
 | --- | --- | --- |
-| `file` | stdin | Input file; omit or pass `-` to read standard input |
-| `--fixation {1..5}` | `3` | Fixation strength: how much of each word is emphasised |
-| `--saccade N` | `1` | Emphasise every Nth word |
-| `--min-word-length N` | `1` | Skip words shorter than N characters |
-| `--numbers` | off | Also emphasise words made only of digits |
-| `--tag NAME` | `b` | HTML tag wrapping the fixation |
-| `--class NAME` | none | `class` attribute for the fixation element |
-| `--no-ignore-html-tags` | off | Treat the input as plain text and escape markup |
-| `--markdown` | off | Emit `**prefix**rest` instead of HTML |
+| `file` | `stdin` | Input file path; omit or specify `-` to read standard input. |
+| `--fixation {1..5}` | `3` | Fixation strength (ratio of word emphasised). |
+| `--saccade N` | `1` | Saccade frequency: emphasise every *N*-th word. |
+| `--min-word-length N` | `1` | Skip words with fewer than *N* grapheme clusters. |
+| `--numbers` | off | Also emphasise words composed entirely of decimal digits. |
+| `--tag NAME` | `b` | HTML tag wrapping each fixation prefix. |
+| `--class NAME` | none | Optional `class` attribute on the fixation element. |
+| `--no-ignore-html-tags` | off | Treat input as plain text and escape all markup. |
+| `--markdown` | off | Emit Markdown emphasis (`**prefix**rest`) instead of HTML. |
 
-`rest_tag`, `rest_class_name`, `skip_tags` and `locale` are library-only options
-with no CLI flag; use `to_html` from Python for those.
+---
 
-## Options
+## Configuration options
 
-`tokenize`, `to_html` and `to_markdown` take the algorithm options as keyword
-arguments, as an `Options` instance (`to_html(text, Options(fixation=4))`), or
-both (keywords override the instance). Out-of-range `fixation` (not 1–5) and
-`saccade` (< 1) are clamped into range, as in every port; values of the wrong
-type raise `ValueError`; unknown names raise `TypeError`. `DEFAULTS` is the spec default `Options()`.
+`tokenize`, `to_html`, and `to_markdown` accept algorithm options as keyword arguments, as an `Options` instance (`to_html(text, Options(fixation=4))`), or both (keywords override instance fields).
 
-| Option | Type | Default | Meaning |
+Out-of-range `fixation` (outside 1–5) and `saccade` (< 1) values are automatically clamped into valid ranges.
+
+| Option | Type | Default | Description |
 | --- | --- | --- | --- |
-| `fixation` | `1..5` | `3` | Ratio of each word emphasised: 0.20, 0.35, 0.50, 0.65, 0.80; out-of-range values are clamped |
-| `saccade` | `int >= 1` | `1` | Emphasise every Nth word; the first word always counts as index 0; values below 1 are clamped to 1 |
-| `min_word_length` | `int >= 0` | `1` | Words shorter than this get no fixation |
-| `emphasize_numbers` | `bool` | `False` | Emphasise words made only of digits |
-| `locale` | `str \| None` | `None` | BCP-47 tag, accepted for cross-port parity (unused by the regex tokenizer) |
-| `fixation_length` | `(word, graphemes, options) -> int` | `None` | Replaces the algorithm entirely; the result is clamped to `0..graphemes` |
+| `fixation` | `1..5` | `3` | Ratio of word emphasised: `0.20, 0.35, 0.50, 0.65, 0.80`. Out-of-range values are clamped. |
+| `saccade` | `int >= 1` | `1` | Saccade interval: emphasise every *N*-th word. Values `< 1` are clamped to `1`. |
+| `min_word_length` | `int >= 0` | `1` | Words shorter than this get no fixation. |
+| `emphasize_numbers` | `bool` | `False` | Whether to emphasise words consisting solely of digits. |
+| `locale` | `str \| None` | `None` | BCP-47 tag, accepted for parity across ports (unused by regex scanner). |
+| `fixation_length` | `Callable` | `None` | Custom callback `(word, graphemes, options) -> int` replacing the fixation calculation. |
 
-`to_html` additionally takes the keyword-only `tag`, `class_name`, `rest_tag`,
-`rest_class_name`, `ignore_html_tags` and `skip_tags` (default `SKIP_TAGS`);
-`to_markdown` takes `marker` (default `"**"`).
+`to_html` additionally accepts: `tag`, `class_name`, `rest_tag`, `rest_class_name`, `ignore_html_tags`, and `skip_tags`.
+`to_markdown` additionally accepts: `marker` (default `"**"`).
 
-`fixation_length(word, graphemes, options=DEFAULTS)` exposes the bare
-algorithm for a single word.
+---
 
 ## Algorithm
 
@@ -167,59 +170,36 @@ ratio     = {1: 0.20, 2: 0.35, 3: 0.50, 4: 0.65, 5: 0.80}[s]
 prefixLen = clamp(floor(n * ratio + 0.5), 1, n)
 ```
 
-with these rules applied first, in this order: words made only of digits are
-skipped unless `emphasize_numbers` is set, words shorter than `min_word_length`
-are skipped, and a one-character word is emphasised only when `s >= 3`.
-Rounding is always half-up (never banker's rounding) so every port agrees.
+Evaluation rules are applied in the following order:
+1. Words made only of digits are skipped unless `emphasize_numbers=True`.
+2. Words shorter than `min_word_length` are skipped.
+3. A single-character word is emphasised only when `s >= 3`.
+4. Otherwise, calculate `prefixLen` using integer-based half-up rounding (`floor((n * percent + 50) / 100)`).
 
-## Tokenizer and Unicode caveats
+---
 
-Python's `re` has no `\p{...}` property escapes and `\w` wrongly matches `_`, so
-the spec tokenizer is implemented as a hand-written scanner over
-`unicodedata.category`. Words are maximal runs of letters, numbers and marks,
-optionally joined by `'` or `’`; hyphens separate (`well-known` →
-`<b>we</b>ll-<b>kno</b>wn`). A run of Han, Hiragana, Katakana or Hangul
-characters is a single word and follows the same fixation rules as any other
-word. There is no dictionary-based word
-breaking, so `fixtures/segmenter/*` (which need ICU) do not apply to this port.
+## Tokenizer & Unicode handling
 
-A word never starts with a combining mark: a mark that follows a separator —
-the variation selector of `❤️`, say — stays with the separator, as in ICU, so
-emoji sequences pass through untouched.
+Python's built-in `re` module does not support Unicode `\p{...}` properties and `\w` erroneously includes underscores. The tokenizer is implemented as a fast scanner over `unicodedata.category`.
 
-Grapheme clusters are approximated rather than fully segmented per UAX #29: a
-base character plus any following combining marks (`Mn`/`Mc`/`Me`, which covers
-variation selectors) is one cluster, ZWJ joins the following character,
-decomposed Hangul jamo compose into syllables, Indic conjuncts of the
-Unicode 15.1 linker scripts (Devanagari, Bengali, Gujarati, Oriya, Telugu,
-Malayalam — `क्ष`, `ক্ষ`) stay in one cluster, and CR+LF is one cluster.
-Regional-indicator pairs (flag emoji) still count as two, and Burmese spacing
-vowel signs are attached to their consonant where ICU keeps them separate —
-neither affects a `common` fixture. Full UAX #29 support would need the
-third-party `regex` module, which this package deliberately avoids.
+- **Word boundaries**: Words are maximal runs of letters, numbers, and marks, optionally connected by internal apostrophes (`don't` is one word; `well-known` splits at hyphens into two words).
+- **Combining marks**: A word never begins with a combining mark; marks following separators (e.g. variation selectors in emoji sequences like `❤️`) remain attached to the separator.
+- **Grapheme clusters**: Evaluated using a lightweight UAX #29 approximation without external dependencies:
+  - Base characters plus following combining marks (`Mn`, `Mc`, `Me`) form a single cluster.
+  - Zero-width joiners (ZWJ) connect to following characters.
+  - Decomposed Hangul jamo sequences compose into complete syllables.
+  - Indic conjuncts for Unicode 15.1 linker scripts (Devanagari, Bengali, Gujarati, Oriya, Telugu, Malayalam — such as `क्ष`) remain unified as single clusters.
+  - CR+LF pairs are treated as single clusters.
 
-## Languages and scripts
+### Script behavior
 
-Every space-separated script — Korean, Vietnamese, Hindi and the other Indic
-scripts, Arabic, Persian, Urdu, Hebrew, Greek, Turkish, German, mixed-direction
-text, emoji — renders byte-identically to the ICU-backed ports
-(`fixtures/common/scripts.json`). Chinese, Japanese, Thai, Lao, Khmer and
-Burmese degrade predictably: each unbroken run is one word, so `我喜欢阅读`
-becomes `<b>我喜欢</b>阅读` here and `<b>我</b><b>喜</b>欢<b>阅</b>读` with a
-dictionary. The full matrix is in [`docs/LANGUAGES.md`](../docs/LANGUAGES.md).
+All space-separated scripts (Latin, Greek, Cyrillic, Korean, Vietnamese, Indic scripts, Arabic, Hebrew, Persian, Urdu) render byte-identically to ICU-backed ports (`fixtures/common/scripts.json`).
 
-Bold is typographically weak for Arabic and Indic scripts in many fonts;
-switch to colour or a weight of your choice with a class:
+For scripts without spaces (Chinese, Japanese, Thai, Lao, Khmer, Burmese), the package applies a predictable run rule: each unbroken run of ideographs or syllables is treated as a single word (`我喜欢阅读` → `<b>我喜欢</b>阅读`). This avoids third-party C/ICU dependencies while ensuring deterministic execution.
 
-```python
-to_html(text, tag="span", class_name="sr-fixation", rest_tag="span", rest_class_name="sr-rest")
-```
+For detailed cross-platform comparisons, see [`docs/LANGUAGES.md`](../docs/LANGUAGES.md).
 
-Right-to-left text needs nothing special: the fixation is the logical start of
-each word, and `to_html` never adds `dir` attributes or bidi control
-characters. `tests/test_languages.py` checks over every fixture input that the
-tokens concatenate back to the input and that the markup adds nothing but the
-emphasis tags.
+---
 
 ## Development
 
@@ -230,6 +210,8 @@ uv venv && uv pip install -e ".[dev]"
 .venv/bin/python -m ruff check && .venv/bin/python -m ruff format --check
 ```
 
-## Licence
+---
+
+## License
 
 Apache-2.0. See [LICENSE](LICENSE).

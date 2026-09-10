@@ -1,25 +1,29 @@
 # SmoothReading (Swift)
 
-Guided fixation reading for Apple platforms: the leading letters of every word
-are emphasised so the eye gets an artificial fixation point and the brain
-completes the rest of the word. Similar to commercial fixation-reading products,
-but open source, dependency-free and specified in
-[`docs/SPEC.md`](../docs/SPEC.md) so every port of this project produces
-identical output.
+Guided fixation reading for Apple platforms: the leading letters of every word are emphasised so the eye lands on an artificial fixation point and the brain completes the rest of the word.
 
-- Zero dependencies — Foundation only (ICU word breaking, `AttributedString`).
-- Swift 6, strict concurrency: every public type is `Sendable`.
-- iOS 17+, macOS 14+, watchOS 10+, tvOS 17+, visionOS 1+.
-- UIKit/AppKit first: `NSAttributedString` with a real bold font is the primary
-  API; `AttributedString` for SwiftUI is a convenience over the same token walk.
+Similar to commercial fixation-reading products, this package is an independent, clean-room, zero-dependency, Apache-2.0 library implemented strictly against the project [specification](../docs/SPEC.md) to guarantee identical output across all platforms.
 
-Every snippet below is compiled by
-`Tests/SmoothReadingTests/ReadmeSnippetTests.swift`.
+- **Zero third-party dependencies**: Built exclusively on Foundation (ICU word breaking, `AttributedString`, `FontDescriptor`).
+- **Swift 6 & Strict Concurrency**: All public types conform to `Sendable`.
+- **Broad platform support**: iOS 17+, macOS 14+, watchOS 10+, tvOS 17+, and visionOS 1+.
+- **UIKit & AppKit first**: `NSAttributedString` using real bold font descriptors is the primary API; `AttributedString` for SwiftUI is a first-class convenience built on the same token walk.
 
-## Install
+Every code snippet below is verified by `Tests/SmoothReadingTests/ReadmeSnippetTests.swift`.
 
-Swift Package Manager — in Xcode, *File ▸ Add Package Dependencies…* and point
-at this repository, or in a `Package.swift`:
+---
+
+## Installation
+
+### Swift Package Manager
+
+In Xcode, select **File ▸ Add Package Dependencies…** and enter:
+
+```
+https://github.com/PythonShe/Smooth_Reading.git
+```
+
+Or add it to your `Package.swift`:
 
 ```swift
 dependencies: [
@@ -32,20 +36,15 @@ targets: [
 ]
 ```
 
-The package lives in the `swift/` directory of the monorepo and releases are
-tagged `vX.Y.Z`. Because SwiftPM only reads a `Package.swift` at the root of a
-repository, the repository root carries a manifest that declares the same
-`SmoothReading` library with its sources under `swift/`, so the `.package(url:)`
-above resolves directly. `swift/Package.swift` is the same package for working
-inside this directory; to try it locally from another project, add it as a path
-dependency: `.package(path: "../smooth_reading")` (or `…/smooth_reading/swift`).
+The Swift package source is located in the `swift/` directory of the monorepo, and releases are tagged `vX.Y.Z`. Because SwiftPM requires a `Package.swift` at the repository root, a root manifest exposes the `SmoothReading` library directly. When working locally across repositories, you can add it as a local path dependency: `.package(path: "../smooth_reading")`.
 
-## UIKit
+---
 
-`nsAttributedString(_:options:font:fixationAttributes:restAttributes:)` derives a
-real bold font from the base font (`boldFont(from:)`, via the font descriptor's
-bold trait, falling back to a bold weight for families without a bold face), so
-`UILabel`, `UITextView` and friends render it without any bridging surprises.
+## Usage
+
+### UIKit
+
+`SmoothReading.nsAttributedString(_:options:font:fixationAttributes:restAttributes:)` derives a genuine bold typeface from your base font (via font descriptor traits, falling back to a bold weight for typeface families without a dedicated bold face). `UILabel`, `UITextView`, and related views render the result without bridging overhead:
 
 ```swift
 import UIKit
@@ -69,7 +68,7 @@ let textView = UITextView()
 textView.applySmoothReading(article, options: SmoothOptions(fixation: 4, saccade: 2))
 ```
 
-Custom emphasis instead of bold (colour, underline, a different face):
+To customize styling beyond bold (such as color, underline, or a specific typeface weight):
 
 ```swift
 label.attributedText = SmoothReading.nsAttributedString(
@@ -86,10 +85,11 @@ label.attributedText = SmoothReading.nsAttributedString(
 )
 ```
 
-## AppKit
+---
 
-The same `nsAttributedString` API; the bold face comes from `NSFontManager`
-with a weight-trait fallback.
+### AppKit
+
+AppKit uses the same `nsAttributedString` API; bold faces are resolved via `NSFontManager` with an automatic weight fallback:
 
 ```swift
 import AppKit
@@ -107,12 +107,11 @@ let textView = NSTextView()
 textView.applySmoothReading(article, options: SmoothOptions(fixation: 4))
 ```
 
-## SwiftUI
+---
 
-`attributedString(_:options:fixationAttributes:restAttributes:)` marks fixations
-with `.inlinePresentationIntent = .stronglyEmphasized`, which `Text` renders
-bold. It walks the same tokens as `nsAttributedString`, so both APIs always
-emphasise exactly the same characters.
+### SwiftUI
+
+`SmoothReading.attributedString(_:options:fixationAttributes:restAttributes:)` assigns `.inlinePresentationIntent = .stronglyEmphasized` to fixations, which SwiftUI's `Text` renders as bold text. It walks the exact same token stream as `nsAttributedString`:
 
 ```swift
 import SwiftUI
@@ -128,7 +127,7 @@ struct ArticleView: View {
 }
 ```
 
-Pass your own containers for a different look:
+Custom attributes can be applied using `AttributeContainer`:
 
 ```swift
 struct TintedArticleView: View {
@@ -149,7 +148,9 @@ struct TintedArticleView: View {
 }
 ```
 
-## HTML and tokens
+---
+
+### HTML and tokens
 
 ```swift
 SmoothReading.html("Smooth reading works.")
@@ -179,73 +180,64 @@ for token in SmoothReading.tokenize("Smooth reading") {
 }
 ```
 
-Styling for the HTML output lives in `packages/core/styles.css`; emphasis is
-purely presentational, so the library only emits neutral markup.
+Styling classes match `packages/core/styles.css`. Emphasis remains purely presentational, emitting clean semantic markup.
 
-## Options
+---
 
-| Option | Type | Default | Meaning |
+## Configuration options
+
+### Algorithm options (`SmoothOptions`)
+
+| Option | Type | Default | Description |
 | --- | --- | --- | --- |
-| `fixation` | `Int` (1…5) | `3` | How much of each word is emphasised: ratios 0.20 / 0.35 / 0.50 / 0.65 / 0.80, rounded half up and clamped to `1…n`. Values outside 1…5 are clamped. |
-| `saccade` | `Int` (≥ 1) | `1` | `1` emphasises every word, `2` every second word, … Counts word tokens only; the first word always gets a fixation, and numbers consume an index even when not emphasised. |
-| `minWordLength` | `Int` | `1` | Words shorter than this (in grapheme clusters) get no fixation. |
-| `emphasizeNumbers` | `Bool` | `false` | Emphasise words made entirely of digits. |
-| `locale` | `Locale?` | `nil` | Locale for word breaking. `nil` uses `String.enumerateSubstrings(.byWords)`; a locale switches to `CFStringTokenizer` with that locale, which matters for Chinese, Japanese and Thai. |
-| `fixationLength` | `(@Sendable (String, Int, SmoothOptions) -> Int)?` | `nil` | Replaces the algorithm entirely. Receives the word, its grapheme count and the options; the result is clamped to `0…n`. |
+| `fixation` | `Int` (1…5) | `3` | Fixation strength: ratios `0.20 / 0.35 / 0.50 / 0.65 / 0.80`, rounded half up and clamped to `1…n`. Values outside `1…5` are automatically clamped. |
+| `saccade` | `Int` (≥ 1) | `1` | Emphasises every *n*-th word (`1` = every word, `2` = every second word). Word tokens consume an index, including numbers and short words. Values `< 1` are clamped to `1`. |
+| `minWordLength` | `Int` | `1` | Words with fewer grapheme clusters receive no fixation. |
+| `emphasizeNumbers` | `Bool` | `false` | Whether words composed entirely of decimal digits are emphasised. |
+| `locale` | `Locale?` | `nil` | Locale used for word breaking. `nil` defaults to `String.enumerateSubstrings(.byWords)`; specifying a locale activates `CFStringTokenizer`, which provides dictionary breaking for Chinese, Japanese, and Thai. |
+| `fixationLength` | `(@Sendable (String, Int, SmoothOptions) -> Int)?` | `nil` | Closure replacing the fixation algorithm entirely. Receives the word, its grapheme count, and options; result is clamped to `0…n`. |
 
-`HtmlOptions` wraps a `SmoothOptions` in its `options` property and adds:
+### HTML options (`HtmlOptions`)
 
-| Option | Type | Default | Meaning |
+`HtmlOptions` wraps `SmoothOptions` in its `options` property and adds:
+
+| Option | Type | Default | Description |
 | --- | --- | --- | --- |
-| `tag` | `String` | `"b"` | Tag wrapping each fixation. |
-| `className` | `String?` | `nil` | Class attribute on the fixation tag. |
-| `restTag` | `String?` | `nil` | Tag wrapping the rest of the word; `nil` leaves it plain text. |
-| `restClassName` | `String?` | `nil` | Class attribute on the rest tag. |
-| `ignoreHtmlTags` | `Bool` | `true` | Pass existing tags and character references (`&amp;`, `&#x27;`, …) through verbatim; references act as word boundaries and only a bare `&` is escaped. A `<` only starts a tag when followed by a letter, `/`, `!` or `?`. With `false` the whole input is plain text and every `&`, `<`, `>`, `"` is escaped. |
-| `skipTags` | `Set<String>` | `code`, `pre`, `script`, `style`, `kbd`, `samp`, `textarea` | Elements (case-insensitive) whose text is never emphasised. `tag` and `restTag` are always skipped as well, so output is never wrapped twice. A word that gets no fixation is plain text, never wrapped in `restTag`. |
+| `tag` | `String` | `"b"` | Tag name wrapping each fixation prefix. |
+| `className` | `String?` | `nil` | Optional `class` attribute on the fixation tag. |
+| `restTag` | `String?` | `nil` | Optional tag name wrapping the remainder of the word; `nil` leaves it as plain text. |
+| `restClassName` | `String?` | `nil` | Optional `class` attribute on the rest tag. |
+| `ignoreHtmlTags` | `Bool` | `true` | Preserves existing tags and character references (`&amp;`, `&#x27;`). When `false`, treats input as plain text and escapes all HTML characters. |
+| `skipTags` | `Set<String>` | `code`, `pre`, `script`, `style`, `kbd`, `samp`, `textarea` | Tag names whose contents are never emphasised. Fixation and rest tags are automatically skipped to avoid nested markup. |
 
-## Word breaking
+---
 
-Words come from ICU via `String.enumerateSubstrings(in:options: .byWords)`, or
-`CFStringTokenizer` when a `locale` is set (the only Foundation word breaker that
-takes one): apostrophes join (`don't` is one word), hyphens split (`well-known`
-is two), and CJK/Thai get dictionary-based breaks. The two paths are tested to
-agree on every `fixtures/common` input. Grapheme clusters are counted natively
-(`String.count`), so combining marks are never split from their base and a
-single-scalar count is never used.
+## Word breaking & Multilingual support
 
-This port passes both `fixtures/common/*.json` and `fixtures/segmenter/*.json`.
+Word boundaries are derived from ICU via `String.enumerateSubstrings(in:options: .byWords)`, or `CFStringTokenizer` when a custom `locale` is provided. Contractions join (`don't` is one word), hyphens split (`well-known` is two words), and scripts without spaces (CJK and Thai) receive dictionary-based segmentation.
 
-## Languages and scripts
+Grapheme clusters are counted natively using Swift's standard library (`String.count`), adhering to Unicode UAX #29 extended grapheme cluster rules:
+- Combining marks and diacritics never split from their base letters.
+- Decomposed Hangul jamo compose into unified syllables.
+- Indic conjuncts such as `क्ष` form single clusters (Unicode 15.1 GB9c).
 
-Chinese, Japanese, Thai, Lao, Khmer and Burmese get ICU dictionary word breaks;
-Korean, Vietnamese, the Indic scripts, Arabic, Persian, Urdu, Hebrew, Greek and
-every other space-separated script are broken by ICU's default rules and
-produce the same output as every other port (`fixtures/common/scripts.json`).
-Grapheme clusters follow the Swift stdlib's UAX #29 rules: decomposed Hangul
-jamo compose, and Devanagari/Bengali conjuncts such as `क्ष` are one cluster,
-so a fixation never ends in a half-form. The full matrix, including where ICU
-builds disagree (Japanese verb endings, Thai compounds, Khmer conjunct
-counts), is in [`docs/LANGUAGES.md`](../docs/LANGUAGES.md).
+### Script recommendations
 
-Two things to know:
-
-- **Traditional Chinese with a locale**: pass `Locale(identifier: "zh-Hant")`
-  (or no locale). `CFStringTokenizer` with plain `zh` splits `我們` and `學習`
-  into single characters.
-- **Bold is weak for Arabic and Indic scripts** in many fonts. Pass colour or
-  an underline instead of relying on the bold face:
+- **Traditional Chinese with locale**: When passing an explicit locale to `CFStringTokenizer`, use `Locale(identifier: "zh-Hant")` (or `nil`). Standard `zh` may separate multi-character words like `我們` and `學習`.
+- **Typographic considerations for Arabic and Indic scripts**: Because many fonts lack distinct bold faces or blur ligatures under bold weights, pass custom color or underline attributes via `fixationAttributes`:
 
   ```swift
   let attributed = SmoothReading.nsAttributedString(
-      text, fixationAttributes: [.foregroundColor: UIColor.systemBlue])  // NSColor on macOS
+      text,
+      fixationAttributes: [.foregroundColor: UIColor.systemBlue] // NSColor on macOS
+  )
   ```
 
-Right-to-left text needs nothing special: the fixation is the logical start of
-each word, and neither `html()` nor the attributed strings add `dir`
-attributes, isolates or bidi control characters — `LanguagesTests` checks over
-every fixture input that runs and tokens concatenate back to the input and
-that the markup adds nothing but the emphasis tags.
+- **Bidirectional text (RTL)**: Arabic and Hebrew are emphasised at their logical beginning (the right edge) without requiring special tags or bidi overrides. Attributed strings and HTML output do not insert isolates or directional marks.
+
+For details on cross-engine compatibility, see [docs/LANGUAGES.md](../docs/LANGUAGES.md).
+
+---
 
 ## Development
 
@@ -254,6 +246,8 @@ cd swift
 swift build
 swift test
 ```
+
+---
 
 ## License
 

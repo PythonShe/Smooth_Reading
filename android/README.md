@@ -1,18 +1,21 @@
 # Smooth Reading — Android & JVM
 
-Guided fixation reading for Android and plain JVM: the leading letters of every
-word are emphasised so the eye has an artificial fixation point. The algorithm
-is specified in [`docs/SPEC.md`](../docs/SPEC.md) and produces the same output
-as the TypeScript, Swift and Python ports (`fixtures/common` is shared).
+Guided fixation reading for Android and Kotlin/JVM: the leading letters of every word are emphasised so the eye lands on an artificial fixation point and the brain completes the rest of the word.
 
-Two artifacts are published from this build:
+Similar to commercial fixation-reading products, this library is an independent, clean-room, Apache-2.0 implementation built strictly to the monorepo [specification](../docs/SPEC.md), producing identical results to the TypeScript, Swift, and Python ports.
 
-| Artifact | Module | Contents |
+Two distinct artifacts are published:
+
+| Artifact | Target | Description |
 | --- | --- | --- |
-| `io.smoothreading:smooth-reading` | `smooth-reading/` | Android library (minSdk 26): `spanned()` / `setSmoothText()` for `TextView`, `annotatedString()` for Compose, ICU tokenizer. Depends on core. |
-| `io.smoothreading:smooth-reading-core` | `smooth-reading-core/` | Pure Kotlin/JVM, zero dependencies: `tokenize`, `toHtml`, `fixationLength` |
+| `io.smoothreading:smooth-reading` | Android (minSdk 26+) | Full Android library: `spanned()` and `setSmoothText()` for `TextView`, `annotatedString()` for Jetpack Compose, and `IcuWordSegmenter` for dictionary word breaking. |
+| `io.smoothreading:smooth-reading-core` | Any JVM target | Pure Kotlin/JVM, zero dependencies: `tokenize()`, `toHtml()`, `fixationLength()`, and `SpecWordSegmenter`. Ideal for server-side rendering, desktop, and backend pipelines. |
 
-## Install
+Every code snippet below is verified by unit tests in `ReadmeSnippetsTest`.
+
+---
+
+## Installation
 
 ```kotlin
 // build.gradle.kts — Android app or library
@@ -20,26 +23,24 @@ dependencies {
     implementation("io.smoothreading:smooth-reading:0.1.0")
 }
 
-// build.gradle.kts — plain JVM project (server-side rendering, CLI, desktop)
+// build.gradle.kts — Plain Kotlin/JVM project (SSR, desktop, CLI)
 dependencies {
     implementation("io.smoothreading:smooth-reading-core:0.1.0")
 }
 ```
 
-The Android artifact pulls in the core artifact transitively. Its only other
-dependency, `androidx.compose.ui:ui-text` (for `AnnotatedString` /
-`SpanStyle`), is declared **`compileOnly`** on purpose:
+### Lightweight Compose integration
 
-* A View-only app gets no Compose runtime in its APK. The class that references
-  Compose (`SmoothReadingCompose`) is never loaded unless you call
-  `annotatedString()`, and the library's consumer ProGuard rules carry the
-  matching `-dontwarn androidx.compose.ui.**` so R8 does not complain about
-  the classes you do not ship.
-* A Compose app already has `ui-text` on its classpath through
-  `androidx.compose.ui:ui`, so nothing extra is needed. The library declares
-  no `@Composable` function and does not require the Compose compiler plugin.
+The Android artifact includes `io.smoothreading:smooth-reading-core` transitively. Its only other dependency, `androidx.compose.ui:ui-text` (for `AnnotatedString` and `SpanStyle`), is declared **`compileOnly`**:
 
-## TextView
+- **View-only applications** incur no Compose runtime overhead in their APK. The Compose adapter class (`SmoothReadingCompose`) is only loaded when `annotatedString()` is invoked, and consumer ProGuard rules include `-dontwarn androidx.compose.ui.**`.
+- **Jetpack Compose applications** already have `ui-text` provided transitively via `androidx.compose.ui:ui`. The library requires no Compose compiler plugin and adds minimal method count.
+
+---
+
+## Usage
+
+### Android Views (`TextView`)
 
 ```kotlin
 import io.smoothreading.SmoothOptions
@@ -60,15 +61,13 @@ textView.setSmoothText(
 textView.text = SmoothReading.spanned("Smooth reading works.")
 ```
 
-`spanned()` returns a `SpannableString` over the original text. The fixation
-of each word carries a `StyleSpan(Typeface.BOLD)` by default (pass
-`fixationSpan = { … }` for something else), and `restSpan` optionally styles the
-remainder — e.g. a `ForegroundColorSpan` for an alpha effect. Spans are given as
-factories because every span instance covers exactly one range. Words without a
-fixation get no span at all, so the result composes with the view's existing
-typeface and text appearance.
+- `spanned()` returns a `SpannableString` over the original input text.
+- Fixations apply `StyleSpan(Typeface.BOLD)` by default (override via `fixationSpan = { … }`).
+- Spans are provided via factory lambdas because each Android span instance covers exactly one range. Words without a fixation receive no span, compositing naturally with the view's existing typography.
 
-## Jetpack Compose
+---
+
+### Jetpack Compose
 
 ```kotlin
 import androidx.compose.material3.Text
@@ -91,10 +90,11 @@ fun Article(body: String) {
 }
 ```
 
-`annotatedString()` is a plain function (not `@Composable`), so it can be
-called from a `ViewModel` or `remember { }` block and cached.
+`annotatedString()` is a standard Kotlin function (not `@Composable`), making it safe to compute in `ViewModel` classes, background coroutines, or `remember(body)` blocks.
 
-## HTML and tokens (any JVM target)
+---
+
+### HTML and Tokens (Any JVM target)
 
 ```kotlin
 import io.smoothreading.HtmlOptions
@@ -111,13 +111,9 @@ SmoothReading.toHtml(
 // <span class="sr-fixation">Smoo</span>th …
 ```
 
-Existing markup is passed through verbatim by default (`ignoreHtmlTags = true`):
-tags, comments and character references such as `&amp;` are left as they are
-and act as word boundaries; a bare `&` or a `<` that does not start a tag is
-escaped. With `ignoreHtmlTags = false` the input is plain text and every `<`,
-`>`, `&`, `"` is escaped.
+By default (`ignoreHtmlTags = true`), existing HTML tags, comments, and character entities (`&amp;`) pass through unchanged and act as word boundaries. Set `ignoreHtmlTags = false` to treat input as plain text and escape all HTML characters.
 
-Tokens are also available directly, which is what the adapters above use:
+Access structured tokens directly:
 
 ```kotlin
 SmoothReading.tokenize("well-known").forEach { token ->
@@ -131,85 +127,85 @@ SmoothReading.tokenize("well-known").forEach { token ->
 // kno|wn
 ```
 
-A custom `fixationLength` replaces the algorithm entirely; delegate to
-`SmoothReading.fixationLength(word, graphemes, options.copy(fixationLength = null))`
-for the cases you do not care about:
+To replace the fixation algorithm entirely:
 
 ```kotlin
 val firstHalf = SmoothOptions(fixationLength = { _, graphemes, _ -> graphemes / 2 })
 SmoothReading.toHtml("reading", firstHalf) // <b>rea</b>ding
 ```
 
-## Options
+---
 
-`SmoothOptions` (SPEC §4); every constructor argument is validated with `require`:
+## Configuration options
 
-| Option | Type | Default | Meaning |
+### Algorithm options (`SmoothOptions`)
+
+All parameters are strictly validated at construction:
+
+| Option | Type | Default | Description |
 | --- | --- | --- | --- |
-| `fixation` | `Int` (1–5) | `3` | How much of each word is emphasised: ratios 0.20 / 0.35 / 0.50 / 0.65 / 0.80, rounded half up in integer arithmetic and clamped to `1..n`. |
-| `saccade` | `Int` (≥ 1) | `1` | `1` = every word, `2` = every second word, … Every word consumes an index, numbers included, even when it gets no fixation. |
-| `minWordLength` | `Int` (≥ 0) | `1` | Words shorter than this (in grapheme clusters) get no fixation. |
-| `emphasizeNumbers` | `Boolean` | `false` | Whether words made only of decimal digits are emphasised. |
-| `locale` | `java.util.Locale?` | `null` | Passed to the break iterators (runtime default when `null`). |
-| `fixationLength` | `((word: String, graphemes: Int, options: SmoothOptions) -> Int)?` | `null` | Replaces the default algorithm entirely; the result is clamped to `0..graphemes`. |
+| `fixation` | `Int` (1..5) | `3` | Fixation strength: ratios `0.20 / 0.35 / 0.50 / 0.65 / 0.80`, rounded half up and clamped to `1..n`. |
+| `saccade` | `Int` (≥ 1) | `1` | Emphasises every *n*-th word (`1` = every word, `2` = every second word). Word tokens consume an index, including numbers and short words. |
+| `minWordLength` | `Int` (≥ 0) | `1` | Words with fewer grapheme clusters receive no fixation. |
+| `emphasizeNumbers` | `Boolean` | `false` | Whether words composed entirely of decimal digits are emphasised. |
+| `locale` | `java.util.Locale?` | `null` | Locale passed to break iterators (falls back to runtime default if `null`). |
+| `fixationLength` | `((String, Int, SmoothOptions) -> Int)?` | `null` | Custom lambda overriding the fixation algorithm. Output is clamped to `0..graphemes`. |
 
-`HtmlOptions` wraps a `SmoothOptions` (Kotlin data classes cannot inherit) and
-adds:
+### HTML options (`HtmlOptions`)
 
-| Option | Type | Default | Meaning |
+`HtmlOptions` wraps `SmoothOptions` in its `smooth` property:
+
+| Option | Type | Default | Description |
 | --- | --- | --- | --- |
-| `smooth` | `SmoothOptions` | `SmoothOptions()` | The fixation options above. |
-| `tag` | `String` | `"b"` | Element wrapped around the fixation prefix. |
-| `className` | `String?` | `null` | Class attribute for `tag`. |
-| `restTag` | `String?` | `null` | Optional element around the rest of the word. Words without a fixation are never wrapped. |
-| `restClassName` | `String?` | `null` | Class attribute for `restTag`. |
-| `ignoreHtmlTags` | `Boolean` | `true` | Pass existing markup and character references through verbatim instead of escaping them. |
-| `skipTags` | `List<String>` | `code, pre, script, style, kbd, samp, textarea` | Elements whose text is never rewritten (case-insensitive). `tag` and `restTag` are always skipped as well, so already-emphasised markup is never wrapped twice. |
+| `smooth` | `SmoothOptions` | `SmoothOptions()` | The base algorithm configuration. |
+| `tag` | `String` | `"b"` | Tag name wrapping the fixation prefix. |
+| `className` | `String?` | `null` | Optional `class` attribute for the fixation element. |
+| `restTag` | `String?` | `null` | Optional tag name wrapping the remainder of the word. Words without fixation are never wrapped. |
+| `restClassName` | `String?` | `null` | Optional `class` attribute for the rest element. |
+| `ignoreHtmlTags` | `Boolean` | `true` | Preserves existing tags and character references (`&amp;`, `&#x27;`). When `false`, treats input as plain text. |
+| `skipTags` | `List<String>` | `code, pre, script, style, kbd, samp, textarea` | Case-insensitive list of element tag names whose inner text is never altered. |
 
-Presentation stays in CSS / span styles: the core only emits neutral markup.
+---
 
-## Tokenizers
+## Word segmentation & Tokenizers
 
-| Segmenter | Where | Behaviour |
+| Segmenter | Environment | Characteristics |
 | --- | --- | --- |
-| `SpecWordSegmenter` | everywhere; default for `tokenize()` / `toHtml()` | The spec's Unicode scanner: `[\p{L}\p{N}\p{M}]+(?:['’][\p{L}\p{N}\p{M}]+)*`, plus one word per run of Han / Kana / Hangul / Thai. Agrees with every `fixtures/common` case in every port. |
-| `IcuWordSegmenter` | Android; default for `spanned()` / `annotatedString()` | `android.icu.text.BreakIterator`: UAX #29 with dictionary breaking for Chinese, Japanese and Thai. Also passes `fixtures/segmenter`. |
+| `SpecWordSegmenter` | All JVM runtimes (default for `tokenize()` / `toHtml()`) | Spec-compliant Unicode scanner (`[\p{L}\p{N}\p{M}]+(?:['’][\p{L}\p{N}\p{M}]+)*`), grouping runs of Han, Kana, Hangul, or Thai into unified words. Guarantees byte-identical output with `fixtures/common/`. |
+| `IcuWordSegmenter` | Android (default for `spanned()` / `annotatedString()`) | Built on `android.icu.text.BreakIterator`. Provides full ICU dictionary-based segmentation for Chinese, Japanese, and Thai. Passes `fixtures/segmenter/`. |
 
-The JVM default is deliberately **not** `java.text.BreakIterator`: outside
-Android it is the JDK's legacy rule-based word iterator, which keeps
-`well-known` as a single word and splits `don’t` into three, both contradicting
-SPEC §3. Grapheme counting *does* use `BreakIterator.getCharacterInstance()`,
-plus a small post-pass that composes Hangul jamo and links Indic conjuncts
-(Unicode 15.1 GB9c), so `क्ष` is one cluster even on a JDK whose break
-iterator predates that rule. Any `WordSegmenter` you write yourself must
-return segments that concatenate back to the input.
+The JVM default deliberately avoids `java.text.BreakIterator` for word breaking, as legacy JDK break iterators misclassify hyphens and contractions. 
 
-Pass a segmenter explicitly when you need the other behaviour:
+Grapheme cluster counting leverages `BreakIterator.getCharacterInstance()`, supplemented with a post-pass for Hangul jamo composition and Indic conjunct linking (Unicode 15.1 rule GB9c). This ensures conjuncts like `क्ष` remain unified as single clusters across all supported JDK versions.
+
+You can specify a segmenter explicitly when needed:
 
 ```kotlin
 SmoothReading.toHtml("我喜欢阅读", segmenter = IcuWordSegmenter(Locale.CHINESE))
 // <b>我</b><b>喜</b>欢<b>阅</b>读   (dictionary word breaks)
+
 SmoothReading.toHtml("我喜欢阅读", segmenter = SpecWordSegmenter)
-// <b>我喜欢</b>阅读                (one word per CJK run, like the other ports)
+// <b>我喜欢</b>阅读                (one word per CJK run)
+
 SmoothReading.spanned("我喜欢阅读", SmoothOptions(), segmenter = SpecWordSegmenter)
 ```
 
-## Requirements
+---
 
-* Android `minSdk` 26, `compileSdk` 37
-* Java 11 bytecode; both modules are compiled with a JDK 21 toolchain
-  (`org.gradle.java.installations.paths` in `gradle.properties` points Gradle
-  at the Homebrew JDKs; the Robolectric tests are launched on JDK 21 as well)
-* Gradle 9.7.1, Android Gradle Plugin 9.4.0, Kotlin 2.4.20
+## Build requirements
 
-## Building
+- **Android SDK**: `minSdk` 26, `compileSdk` 37
+- **Bytecode target**: Java 11 bytecode compiled with a JDK 21 toolchain
+- **Build toolchain**: Gradle 9.7.1, Android Gradle Plugin 9.4.0, Kotlin 2.4.20
 
 ```bash
 cd android
 ./gradlew :smooth-reading-core:test :smooth-reading:test :smooth-reading:assembleRelease
-./gradlew publishToMavenLocal  # io.smoothreading:{smooth-reading,smooth-reading-core}:0.1.0
+./gradlew publishToMavenLocal
 ```
 
-The README snippets above are mirrored in `ReadmeSnippetsTest` in both modules.
-`local.properties` (the Android SDK location) is generated per machine and is
-not committed.
+---
+
+## License
+
+Apache-2.0. See [LICENSE](../LICENSE).

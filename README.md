@@ -6,23 +6,26 @@ Open-source, framework-friendly **guided fixation reading**: the leading letters
 Smooth reading works.   →   **Smo**oth **read**ing **wor**ks.
 ```
 
-The technique is similar to commercial fixation-reading products, but this project is independent, clean-room, trademark-free and licensed under Apache-2.0. The algorithm is documented in full in [docs/SPEC.md](docs/SPEC.md) so every port produces identical output.
+The technique is similar to commercial fixation-reading products, but this project is independent, clean-room, trademark-free, and licensed under Apache-2.0. The algorithm is documented in full in [docs/SPEC.md](docs/SPEC.md), ensuring that every port produces identical output.
 
 ## Packages
 
-| Package | Registry | Platforms |
-| --- | --- | --- |
-| [`@smooth-reading/core`](packages/core) | npm | Web, Node, React Native. Zero-dependency tokenizer, HTML transformer, DOM applier, streaming transform. |
-| [`SmoothReading`](swift) | Swift Package Manager | iOS, macOS. `NSAttributedString` for UIKit/AppKit, `AttributedString` for SwiftUI. |
-| [`io.smoothreading:smooth-reading`](android) | Maven Central | Android, JVM. `AnnotatedString` for Compose, `Spanned` for views. |
-| [`smooth-reading`](python) | PyPI | Python 3.10+. Same algorithm plus a CLI. |
+| Package | Registry | Platforms | Description |
+| --- | --- | --- | --- |
+| [`@smooth-reading/core`](packages/core) | npm | Web, Node.js, React Native, Deno, Bun | Zero-dependency tokenizer, HTML transformer, DOM applier, streaming transform. |
+| [`SmoothReading`](swift) | Swift Package Manager | iOS 17+, macOS 14+, watchOS 10+, tvOS 17+, visionOS 1+ | Native Swift 6 library. `NSAttributedString` for UIKit/AppKit, `AttributedString` for SwiftUI. |
+| [`io.smoothreading:smooth-reading`](android) | Maven Central | Android (minSdk 26), JVM | `AnnotatedString` for Jetpack Compose, `Spanned` for Android Views, pure JVM core. |
+| [`smooth-reading`](python) | PyPI | Python 3.10+ | Zero-dependency Python library, type-annotated, with a built-in CLI. |
 
-React, Vue, Svelte, Angular and other framework wrappers are a few lines on top of `tokenize()`; copy one from [docs/recipes](docs/recipes) rather than adding a dependency.
+---
 
 ## Quick start
 
+### Web & TypeScript
+
 ```bash
 pnpm add @smooth-reading/core
+# npm install @smooth-reading/core  ·  yarn add @smooth-reading/core
 ```
 
 ```ts
@@ -32,89 +35,147 @@ toHtml("Smooth reading works.");
 // '<b>Smo</b>oth <b>read</b>ing <b>wor</b>ks.'
 
 toHtml("Smooth reading works.", { fixation: 5, saccade: 2, tag: "span", className: "sr-fixation" });
+// '<span class="sr-fixation">Smoot</span>h reading <span class="sr-fixation">work</span>s.'
 ```
 
-React (see [docs/recipes/react.md](docs/recipes/react.md)):
+### React / Next.js
+
+Render directly from tokens without `innerHTML` (see [docs/recipes/react.md](docs/recipes/react.md)):
 
 ```tsx
 import { tokenize } from "@smooth-reading/core";
 
-export function SmoothText({ children, ...opts }) {
-  return tokenize(children, opts).map((t, i) =>
-    t.type === "word" ? <span key={i}><b>{t.fixationText}</b>{t.restText}</span> : t.text);
+export function SmoothText({ children, ...options }) {
+  return tokenize(children, options).map((token, index) =>
+    token.type === "word" && token.fixation > 0 ? (
+      <span key={index}>
+        <b>{token.fixationText}</b>
+        {token.restText}
+      </span>
+    ) : (
+      token.text
+    )
+  );
 }
 ```
 
-Swift (UIKit):
+### Apple (Swift)
 
 ```swift
 import SmoothReading
-label.attributedText = SmoothReading.nsAttributedString("Smooth reading works.", options: .init(fixation: 3))
+
+// UIKit / AppKit convenience
+label.applySmoothReading("Smooth reading works.")
+
+// SwiftUI
+Text(SmoothReading.attributedString("Smooth reading works.", options: SmoothOptions(fixation: 3)))
 ```
 
-See each package README for the full API.
+### Android (Kotlin)
+
+```kotlin
+import io.smoothreading.SmoothReading
+import io.smoothreading.android.annotatedString
+import io.smoothreading.android.setSmoothText
+
+// Jetpack Compose
+Text(SmoothReading.annotatedString("Smooth reading works."))
+
+// Android Views (TextView)
+textView.setSmoothText("Smooth reading works.")
+```
+
+### Python
+
+```bash
+pip install smooth-reading
+```
+
+```python
+from smooth_reading import to_html
+
+to_html("Smooth reading works.")
+# '<b>Smo</b>oth <b>read</b>ing <b>wor</b>ks.'
+```
+
+---
 
 ## Why another library?
 
-Existing open-source implementations are either single-purpose string transformers, archived browser extensions, or GPL/AGPL licensed. None of them segment Chinese, Japanese or Thai correctly, keep contractions intact, render without `innerHTML`, or ship framework adapters. 
+Existing open-source implementations are typically single-purpose string replacers, archived browser extensions, or GPL/AGPL licensed. Most split contractions, break bidirectional text, inject unescaped `innerHTML`, and fail completely on scripts without spaces.
+
+Smooth Reading was built to provide an enterprise-grade, specification-backed foundation:
+
+- **Strict cross-platform parity**: Governed by a formal specification ([docs/SPEC.md](docs/SPEC.md)). Every port passes the same shared test fixtures (`fixtures/common/`), guaranteeing identical output across Web, iOS, macOS, Android, and Python.
+- **Multilingual & Unicode fidelity**: Correct dictionary word boundaries for non-space scripts (Chinese, Japanese, Thai, Lao, Khmer, Burmese), ligature-safe Indic conjuncts (Unicode 15.1 GB9c), non-destructive bidirectional (RTL) handling for Arabic and Hebrew, and grapheme cluster counting instead of naive code units.
+- **Modern UI integration**: Framework-native primitives without unsafe HTML injection. Renders directly as React/Vue/Svelte components, Jetpack Compose `AnnotatedString`, UIKit/AppKit `NSAttributedString`, and SwiftUI `AttributedString`.
+- **Zero runtime dependencies**: Pure Apache-2.0 license, zero external dependencies across all ports, zero telemetry, and zero network calls. Runs completely offline.
+
+---
+
+## Framework recipes
+
+Framework adapters are intentionally not published as separate packages; they are lightweight, copy-paste components built directly on `@smooth-reading/core`'s `tokenize()`. They render native elements (avoiding `innerHTML`), making them safe for untrusted input and server-side rendering:
+
+| Framework / Platform | Recipe Guide | Description |
+| --- | --- | --- |
+| **React / Next.js / Remix** | [docs/recipes/react.md](docs/recipes/react.md) | Pure components (RSC safe), TanStack Query hooks, and ref callbacks. |
+| **React Native / Expo** | [docs/recipes/react-native.md](docs/recipes/react-native.md) | Nested `<Text>` rendering compatible with Hermes and Expo. |
+| **Vue 3** | [docs/recipes/vue.md](docs/recipes/vue.md) | Computed `tokenize()` component and `v-smooth` directive. |
+| **Svelte 5** | [docs/recipes/svelte.md](docs/recipes/svelte.md) | Runes-based component and `use:smooth` action. |
+| **Angular (17+)** | [docs/recipes/angular.md](docs/recipes/angular.md) | Signals-based standalone component and directive. |
+| **Web Components / HTML** | [docs/recipes/web-component.md](docs/recipes/web-component.md) | Zero-build custom element and progressive DOM enhancement. |
+| **Markdown Pipelines** | [docs/recipes/markdown.md](docs/recipes/markdown.md) | Rehype plugins (Astro, Docusaurus, Next MDX) and pure Markdown transforms. |
+
+Explore all recipes in [docs/recipes/](docs/recipes/).
+
+---
 
 ## What the evidence says
 
-Controlled studies (Readwise 2022, Snell 2024, Možina et al. 2025) found **no reading-speed benefit** from this technique for the general population, and no controlled study has demonstrated a benefit for ADHD or dyslexic readers. Many people nevertheless report that they prefer reading this way. Treat it as a reading *preference* you can offer users, not a speed-reading feature. Sources:
+Controlled empirical studies (Readwise 2022, Snell 2024, Možina et al. 2025) found **no reading-speed benefit** from this technique for the general population, and no controlled study has demonstrated a benefit for ADHD or dyslexic readers. Many people nevertheless report that they subjectively prefer reading this way. 
 
-- Readwise reader study, 2022, about 1,900 participants: [blog.readwise.io](https://blog.readwise.io/).
+Treat it as an optional reading *preference* you can offer your users, not an objective speed-reading or cognitive enhancement feature. Scientific literature:
+
+- Readwise reader study, 2022, ~1,900 participants: [blog.readwise.io](https://blog.readwise.io/).
 - Snell, *Acta Psychologica* (2024): [sciencedirect.com](https://www.sciencedirect.com/science/article/pii/S0001691824001811).
-- Možina, Kovačević & Blaznik, *SAGE Open* (2025), [doi:10.1177/21582440251376158](https://journals.sagepub.com/doi/10.1177/21582440251376158).
-- *Attention, Perception & Psychophysics* (2025), [doi:10.3758/s13414-025-03067-w](https://link.springer.com/article/10.3758/s13414-025-03067-w).
+- Možina, Kovačević & Blaznik, *SAGE Open* (2025): [doi:10.1177/21582440251376158](https://journals.sagepub.com/doi/10.1177/21582440251376158).
+- *Attention, Perception & Psychophysics* (2025): [doi:10.3758/s13414-025-03067-w](https://link.springer.com/article/10.3758/s13414-025-03067-w).
+
+---
 
 ## Design principles
 
-- **One documented algorithm**, shared JSON fixtures, identical output across languages.
-- **Unicode first**: `Intl.Segmenter` word breaking for CJK and Thai, grapheme-cluster counting, works with any script.
-- **Safe by default**: skips `code`, `pre`, `script`, `style`, `kbd`, `samp` and `textarea` by default; never uses `innerHTML` in framework adapters; escapes emitted text.
-- **Presentation is CSS**: the transform emits neutral markup; weight, colour and opacity live in a stylesheet you control.
-- **No runtime dependencies, no network, no telemetry.**
+- **One documented algorithm**: Shared JSON fixtures, identical math, and identical output across languages.
+- **Unicode first**: `Intl.Segmenter` and ICU word breaking for non-space scripts, grapheme-cluster counting, and respectful handling of diacritics and ligatures.
+- **Safe by default**: Automatically skips `<code>`, `<pre>`, `<script>`, `<style>`, `<kbd>`, `<samp>`, and `<textarea>`; escapes all emitted text; avoids `innerHTML` in UI recipes.
+- **Presentation is CSS**: The core emits neutral markup (`<b>` or configurable tags/classes); weight, color, and opacity remain fully customizable via stylesheet custom properties.
+- **Zero runtime dependencies**: Self-contained, lightweight, and offline.
+
+---
 
 ## Languages and scripts
 
-CJK, the other Asian scripts and right-to-left text are the point of this
-library, not an afterthought. Every port passes `fixtures/common/scripts.json`
-(Korean, Vietnamese, Hindi, Bengali, Tamil, Arabic, Hebrew, Persian, Urdu,
-Greek, Turkish, German, mixed-direction text, emoji); the ICU-backed ports
-also pass `fixtures/segmenter/` (Chinese, Japanese, Thai, Lao, Khmer, Burmese,
-bidi paragraphs). The full matrix and the per-script reasoning are in
-[docs/LANGUAGES.md](docs/LANGUAGES.md).
+International scripts and right-to-left text are primary architectural requirements of this project, not an afterthought. Every port passes `fixtures/common/scripts.json` (Korean, Vietnamese, Hindi, Bengali, Tamil, Arabic, Hebrew, Persian, Urdu, Greek, Turkish, German, mixed-direction text, emoji); ICU-backed ports also pass `fixtures/segmenter/` (Chinese, Japanese, Thai, Lao, Khmer, Burmese, bidi paragraphs). See [docs/LANGUAGES.md](docs/LANGUAGES.md) for the detailed specification and engine comparisons.
 
 | Script | `@smooth-reading/core` | Swift | Android | Python | Status |
 | --- | --- | --- | --- | --- | --- |
-| Latin, Greek, Cyrillic, Vietnamese, Turkish, German | `Intl.Segmenter` (regex fallback) | ICU | ICU or spec regex | spec regex | identical everywhere |
-| Korean (Hangul, spaces) | same | ICU | ICU or spec regex | spec regex | identical; decomposed jamo compose in every port |
-| Chinese, Japanese | `Intl.Segmenter` dictionary | ICU dictionary | `android.icu` dictionary | one word per run | dictionary breaks in ICU ports; predictable run rule in Python |
-| Thai, Lao, Khmer, Burmese | `Intl.Segmenter` dictionary | ICU dictionary | `android.icu` dictionary | one word per run | as above |
-| Devanagari, Bengali, Gujarati, Oriya, Telugu, Malayalam | same as Latin | ICU | ICU or spec regex | spec regex | identical; conjuncts (`क्ष`) are one cluster (Unicode 15.1) — see the Android note |
-| Tamil and other Indic scripts | same as Latin | ICU | ICU or spec regex | spec regex | identical; marks stay with their consonant |
-| Arabic, Persian, Urdu, Hebrew | same as Latin | ICU | ICU or spec regex | spec regex | identical; tashkeel and niqqud stay with their letter; Persian ZWNJ words stay whole only in ICU ports |
-| Digits of any script (`\p{Nd}`) | — | — | — | — | numbers: no fixation unless `emphasizeNumbers`, still count for `saccade` |
-| Emoji, modifiers, ZWJ and variation-selector sequences | — | — | — | — | separators, passed through untouched |
+| Latin, Greek, Cyrillic, Vietnamese, Turkish, German | `Intl.Segmenter` (regex fallback) | ICU | ICU or spec regex | spec regex | Identical everywhere |
+| Korean (Hangul, spaces) | `Intl.Segmenter` (regex fallback) | ICU | ICU or spec regex | spec regex | Identical; decomposed jamo compose in all ports |
+| Chinese, Japanese | `Intl.Segmenter` dictionary | ICU dictionary | `android.icu` dictionary | One word per run | Dictionary breaks in ICU ports; predictable run rule in Python |
+| Thai, Lao, Khmer, Burmese | `Intl.Segmenter` dictionary | ICU dictionary | `android.icu` dictionary | One word per run | Dictionary breaks in ICU ports; predictable run rule in Python |
+| Devanagari, Bengali, Gujarati, Oriya, Telugu, Malayalam | `Intl.Segmenter` (regex fallback) | ICU | ICU or spec regex | spec regex | Identical; conjuncts (`क्ष`) are one cluster (Unicode 15.1 GB9c) |
+| Tamil and other Indic scripts | `Intl.Segmenter` (regex fallback) | ICU | ICU or spec regex | spec regex | Identical; marks stay attached to base consonants |
+| Arabic, Persian, Urdu, Hebrew | `Intl.Segmenter` (regex fallback) | ICU | ICU or spec regex | spec regex | Identical; tashkeel and niqqud stay with base letters; Persian ZWNJ preserved in ICU ports |
+| Digits of any script (`\p{Nd}`) | — | — | — | — | Unemphasised unless `emphasizeNumbers: true`; still count towards `saccade` |
+| Emoji, modifiers, ZWJ sequences | — | — | — | — | Treated as separators; passed through untouched |
 
-**ICU dictionary breaking** (real word boundaries for Chinese, Japanese,
-Thai, Lao, Khmer and Burmese) is used by the core (`Intl.Segmenter`), Swift
-(`enumerateSubstrings(.byWords)` / `CFStringTokenizer`) and Android
-(`android.icu.text.BreakIterator`, the default for `annotatedString()` and
-`spanned()`). Python, Android's `SpecWordSegmenter` and the core's fallback
-(runtimes without `Intl.Segmenter`) use the spec's regular expression, where
-each run of Han, kana, Hangul or Thai is one word — predictable, but not a
-dictionary. Which runtime the fixtures were verified on, and where ICU builds
-disagree with one another (Japanese inflections, Thai compounds, Khmer conjunct
-counts, JDK 21's grapheme rules), is spelled out in `docs/LANGUAGES.md`.
+### Typographic considerations
 
-**Bold is typographically weak for some scripts.** Many Arabic, Devanagari,
-Bengali and Thai fonts have no bold face or a bold that barely differs from
-regular, and synthetic bold blurs conjuncts and tashkeel. Emit a class instead
-of `<b>` and style it with colour, a heavier weight, or an underline:
+**Bold is typographically weak for some scripts.** Many Arabic, Devanagari, Bengali, and Thai typefaces lack a dedicated bold face or have a bold weight that barely differs from regular. Synthetic bolding can also blur intricate conjuncts and vowel marks. We recommend emitting semantic classes instead of `<b>` and styling fixations with color, weight, or opacity:
 
 ```ts
-toHtml(text, { tag: 'span', className: 'sr-fixation', restTag: 'span', restClassName: 'sr-rest' });
+toHtml(text, { tag: "span", className: "sr-fixation", restTag: "span", restClassName: "sr-rest" });
 ```
 
 ```css
@@ -122,39 +183,37 @@ toHtml(text, { tag: 'span', className: 'sr-fixation', restTag: 'span', restClass
 .sr-rest     { opacity: var(--sr-rest-opacity, 0.85); }
 ```
 
-Swift and Android take the same idea as attributes: pass `fixationAttributes`
-(a colour, an underline) to `nsAttributedString` / `attributedString`, or a
-`fixationStyle` such as `SpanStyle(color = …)` to `annotatedString()`; see each
-package README.
+In Swift and Android, pass custom attributes directly: `fixationAttributes` in `nsAttributedString` / `attributedString`, or `SpanStyle(color = …)` in `annotatedString()`.
 
-**Right-to-left text.** The fixation is always the *logical* start of the
-word (the first letters read), so Arabic and Hebrew words are emphasised on
-their right-hand side without any special handling. The emitted markup and
-attributed strings never add `dir` attributes, `<bdi>` wrappers or bidi
-control characters, and never remove the ones you supplied, so the browser's
-or platform's bidi algorithm sees exactly the text you passed in. Existing
-`<p dir="rtl">` markup is passed through verbatim. Mixed-direction inputs
-(`Hello مرحبا world`, RTL paragraphs with Latin brand names and numbers) are
-part of the fixture suite, and every port has a test that the token texts
-concatenate back to the input and that the output stripped of emphasis tags is
-the escaped input.
+### Bidirectional text (RTL)
+
+The fixation point is always the *logical* start of the word (the first characters read). Arabic and Hebrew words are naturally emphasised on their right-hand side without requiring special directional wrappers. 
+
+Emitted markup and attributed strings never insert `dir` attributes, `<bdi>` elements, or artificial bidi control characters. Mixed-direction inputs (`Hello مرحبا world`, RTL sentences with embedded Latin terms and numbers) are tested in every port to ensure lossless roundtripping.
+
+---
 
 ## Contributing
 
-External pull requests are not accepted for now; bug reports and fixture cases via issues are welcome, and forks are encouraged. See [CONTRIBUTING.md](CONTRIBUTING.md).
+External pull requests are not accepted for now; bug reports, test cases, and questions via issues are warmly welcome, and forks are encouraged. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Development
 
 ```bash
+# TypeScript core
 pnpm install && pnpm build && pnpm test
+
+# Swift package
 cd swift && swift test
+
+# Android & JVM
 cd android && ./gradlew test
+
+# Python package
 cd python && python -m pip install -e ".[dev]" && pytest && mypy --strict smooth_reading
 ```
 
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the rules that keep the four ports
-in lockstep and [CHANGELOG.md](CHANGELOG.md) for release notes.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on maintaining multi-port parity and [CHANGELOG.md](CHANGELOG.md) for version release notes.
 
 ## License
 

@@ -1,178 +1,139 @@
 # Languages and scripts
 
-CJK, the other Asian scripts and right-to-left text are the reason this
-library exists. This document is the support matrix behind the summary in the
-root `README.md`: which engine breaks words and counts grapheme clusters in
-each port, what the fixtures prove, where the engines are known to disagree,
-and how the fixtures were chosen so that every port passes them.
+International scripts, Asian writing systems, and right-to-left text are core design requirements of Smooth Reading, not afterthoughts. This document outlines the multilingual architecture behind the summary in the root `README.md`:
+- Which engines handle word breaking and grapheme clustering across each port.
+- The comprehensive support matrix and test fixture guarantees.
+- Known differences across platform ICU implementations.
+- Guidelines for selecting fonts, weights, and styling across diverse scripts.
 
-The algorithm itself is script-agnostic (`docs/SPEC.md`): a word is emphasised
-on its first `round_half_up(n × ratio)` *grapheme clusters*. Everything
-script-specific therefore lives in two places — the **word breaker** (what is a
-word?) and the **grapheme engine** (what is one user-perceived character?).
+The core fixation algorithm ([docs/SPEC.md](SPEC.md)) is intentionally script-agnostic: each word is emphasised on its leading `round_half_up(n × ratio)` *grapheme clusters*. All script-specific behavior is handled by two components: the **word segmenter** (which identifies words) and the **grapheme cluster engine** (which identifies user-perceived characters).
+
+---
 
 ## Engines per port
 
-| Port | Word breaker | Grapheme clusters |
+| Port | Word segmenter | Grapheme cluster engine |
 | --- | --- | --- |
-| `@smooth-reading/core` (JS) | `Intl.Segmenter(locale, { granularity: "word" })` — the JS engine's ICU (V8 with full ICU, JavaScriptCore, ICU4X in Firefox); the SPEC §3 regex when `Intl.Segmenter` is missing | `Intl.Segmenter(…, { granularity: "grapheme" })`; the SPEC §3 approximation as fallback |
-| Swift | ICU via `String.enumerateSubstrings(.byWords)`, or `CFStringTokenizer` when a `locale` is set | Swift `Character` (the stdlib's UAX #29 implementation, Unicode 16 in Swift 6.3) |
-| Android | `android.icu.text.BreakIterator` (`IcuWordSegmenter`, default for `annotatedString()` / `spanned()`), or `SpecWordSegmenter` (the SPEC §3 regex plus the run rule) | `java.text.BreakIterator.getCharacterInstance()` — ICU-backed on a device, the JDK's rule set in JVM unit tests |
-| Python | hand-written scanner equivalent to the SPEC §3 regex plus the run rule; no dictionary | the SPEC §3 approximation (`smooth_reading.graphemes`) |
+| `@smooth-reading/core` (JS/TS) | `Intl.Segmenter(locale, { granularity: "word" })` backed by runtime ICU; spec-compliant regular expression fallback when unavailable. | `Intl.Segmenter(…, { granularity: "grapheme" })`; spec UAX #29 approximation fallback. |
+| `SmoothReading` (Swift) | ICU via `String.enumerateSubstrings(.byWords)`, or `CFStringTokenizer` when a custom `locale` is provided. | Swift standard library `Character` (native UAX #29 extended grapheme clusters). |
+| `io.smoothreading` (Android/JVM) | Android: `android.icu.text.BreakIterator` (`IcuWordSegmenter`).<br>Plain JVM: `SpecWordSegmenter` (spec-compliant scanner). | `BreakIterator.getCharacterInstance()` with post-pass for Hangul jamo composition and Indic conjunct linking (Unicode 15.1 GB9c). |
+| `smooth-reading` (Python) | High-performance scanner over `unicodedata.category` implementing spec rules; run rule for CJK/Thai. | Spec-compliant UAX #29 approximation (`smooth_reading.graphemes`). |
 
-**ICU dictionary breaking** — real word boundaries for Chinese, Japanese,
-Thai, Lao, Khmer and Burmese — is available in the core (with
-`Intl.Segmenter`), Swift and Android (`IcuWordSegmenter`). The regex ports
-(Python, Android's `SpecWordSegmenter`, the core fallback) treat each run of
-Han, kana, Hangul or Thai as a single word and apply the uniform rules to it:
-`我喜欢阅读` is one five-character word with a three-character fixation instead
-of `我 | 喜欢 | 阅读`. That is deliberate — predictable, dependency-free — and it
-is why `fixtures/segmenter/` is only required of the ICU ports.
+**ICU dictionary breaking** — finding true lexical word boundaries in scripts without spaces (Chinese, Japanese, Thai, Lao, Khmer, Burmese) — is provided in the ICU-backed ports: `@smooth-reading/core` (via `Intl.Segmenter`), Swift, and Android (`IcuWordSegmenter`). 
+
+The pure regular expression / scanner implementations (Python, Android's `SpecWordSegmenter`, and JS fallback) treat each continuous run of Han, Kana, Hangul, or Thai as a unified word. This fallback is completely self-contained, predictable, and requires zero external C/ICU dependencies.
+
+---
 
 ## Support matrix
 
-Status values: **identical** = every port produces byte-identical output and
-the fixtures prove it; **ICU** = correct word breaks in the ICU ports, run rule
-elsewhere; **engine-dependent** = ICU builds disagree with each other, the
-fixtures avoid the disputed inputs and the notes say what to expect.
+Status definitions:
+- **Identical**: Every port produces byte-identical output verified by shared fixtures (`fixtures/common/scripts.json`).
+- **ICU**: Full dictionary-based segmentation in ICU-backed ports; continuous run rule in regex/scanner implementations.
+- **Engine-dependent**: Underlying system ICU versions vary across operating systems; fixtures test inputs where engines agree.
 
-| Script | core | Swift | Android | Python | Status | Notes |
+| Script | `@smooth-reading/core` | Swift | Android | Python | Status | Notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| Latin (incl. Vietnamese, Turkish `İ`/`ı`, German `ß`, long compounds) | ICU / regex | ICU | ICU / regex | regex | identical | NFC and NFD Vietnamese count the same; `İstanbul'da` is one word (apostrophe joins) |
-| Greek (monotonic and polytonic), Cyrillic | ICU / regex | ICU | ICU / regex | regex | identical | precomposed and decomposed breathings both count once |
-| Korean, Hangul with spaces | ICU / regex | ICU | ICU / regex | regex | identical | decomposed jamo (`ᄒ ᅡ ᆫ`) compose to one cluster in every port |
-| Korean without spaces | ICU | ICU | ICU | regex | identical | ICU has no Hangul dictionary either: `한국어문장` is one word everywhere |
-| Chinese, Simplified | dictionary | dictionary | dictionary | run rule | ICU | `locale: "zh"` |
-| Chinese, Traditional | dictionary | dictionary (`zh-Hant`) | dictionary | run rule | ICU | in Swift pass `locale: "zh-Hant"` (or none): `CFStringTokenizer` with plain `zh` splits `我們`/`學習` into single characters |
-| Japanese | dictionary | dictionary | dictionary | run rule | ICU, engine-dependent inflections | particles are separate words (`私 は 本 を`); loanwords split at morpheme boundaries (`スマート フォン`); `「」` are separators; verb endings differ between ICU builds (see below) |
-| Thai | dictionary | dictionary | dictionary | run rule | ICU, engine-dependent compounds | vowel signs and tone marks stay with their consonant; compounds such as `ภาษาไทย` are one word on Apple ICU and two in ICU 76+ |
-| Lao | dictionary | dictionary | dictionary | run rule | ICU | `ພາສາ ລາວ ງ່າຍ` on every engine tested |
-| Khmer | dictionary | dictionary | dictionary | run rule | ICU, engine-dependent clusters | dictionary words agree; consonant + coeng (U+17D2) + consonant is one cluster in ICU 76+/JDK 26 (Unicode 17) but two in Swift 6.3 — fixtures avoid coeng stacks |
-| Burmese | dictionary | dictionary | dictionary | run rule | ICU | spacing vowel signs such as `ာ` (U+102C) are their own cluster per UAX #29, on every engine; the Python approximation attaches them |
-| Devanagari, Bengali, Gujarati, Oriya, Telugu, Malayalam | ICU / regex | ICU | ICU / regex | regex | identical (Unicode ≥ 15.1) | conjuncts link (GB9c): `क्षत्रिय` = `क्ष | त्रि | य`; the Kotlin port applies GB9c itself, so results do not depend on the JDK's Unicode version |
-| Tamil, Sinhala, other Indic scripts without the linker property | ICU / regex | ICU | ICU / regex | regex | identical | virama/pulli stays with its consonant; no linking (`தமிழ்` = 3 clusters). Kannada's linker was added in Unicode 16 and is engine-dependent; not in the fixtures |
-| Arabic, Persian, Urdu | ICU / regex | ICU | ICU / regex | regex | identical | tashkeel and shadda stay with their letter; Arabic-Indic digits are numbers; Persian ZWNJ (U+200C) keeps a word together only in the ICU ports (`می‌خواهم`), the regex splits at it |
-| Hebrew | ICU / regex | ICU | ICU / regex | regex | identical | niqqud and the shin/sin dots stay with their letter; geresh/gershayim inside words (`צ׳ילה`) are joined by ICU but split by the regex — not in the fixtures |
-| Digits of any script (`\p{Nd}`: `42`, `٤٢`, `४२`) | — | — | — | — | identical | numbers get no fixation unless `emphasizeNumbers`, but still consume a `saccade` index |
-| Emoji, skin-tone modifiers, ZWJ sequences, variation selectors | — | — | — | — | identical | separators, passed through untouched; a lone U+FE0F after an emoji belongs to the separator |
-| Full-width Latin (`ＨＥＬＬＯ`) | ICU / regex | ICU | ICU / regex | regex | identical | ordinary letters |
+| Latin (incl. Vietnamese, Turkish `İ`/`ı`, German `ß`, compounds) | ICU / regex | ICU | ICU / regex | regex | Identical | NFC and NFD Vietnamese count identically; `İstanbul'da` is one word (apostrophe joins). |
+| Greek (monotonic/polytonic), Cyrillic | ICU / regex | ICU | ICU / regex | regex | Identical | Precomposed and decomposed breathings both count as single clusters. |
+| Korean (Hangul with spaces) | ICU / regex | ICU | ICU / regex | regex | Identical | Decomposed jamo (`ᄒ ᅡ ᆫ`) compose into single syllable clusters across all ports. |
+| Korean (Hangul without spaces) | ICU | ICU | ICU | regex | Identical | ICU lacks a Hangul dictionary; unbroken text like `한국어문장` forms one word across all ports. |
+| Chinese (Simplified) | Dictionary | Dictionary | Dictionary | Run rule | ICU | Pass `locale: "zh"`. |
+| Chinese (Traditional) | Dictionary | Dictionary (`zh-Hant`) | Dictionary | Run rule | ICU | In Swift, pass `locale: "zh-Hant"` (or `nil`); plain `zh` under `CFStringTokenizer` splits common words like `我們`. |
+| Japanese | Dictionary | Dictionary | Dictionary | Run rule | ICU | Particles separate (`私 は 本 を`); loanwords split at morphemes (`スマート フォン`); brackets (`「」`) act as separators. |
+| Thai | Dictionary | Dictionary | Dictionary | Run rule | ICU | Vowel signs and tone marks stay attached to consonants; compound boundaries vary slightly across ICU versions. |
+| Lao | Dictionary | Dictionary | Dictionary | Run rule | ICU | Consistent word breaks (`ພາສາ ລາວ ງ່າຍ`) across tested ICU engines. |
+| Khmer | Dictionary | Dictionary | Dictionary | Run rule | ICU | Lexical words match; fixtures avoid coeng stacks where ICU 76+ and older engines differ on cluster counts. |
+| Burmese | Dictionary | Dictionary | Dictionary | Run rule | ICU | Spacing vowel signs (e.g. `ာ` U+102C) form distinct clusters per UAX #29 in ICU engines. |
+| Devanagari, Bengali, Gujarati, Oriya, Telugu, Malayalam | ICU / regex | ICU | ICU / regex | regex | Identical | Conjuncts link into single clusters (Unicode 15.1 GB9c): `क्षत्रिय` = `क्ष \| त्रि \| य`. Kotlin and Python enforce GB9c explicitly. |
+| Tamil, Sinhala, and other Indic scripts | ICU / regex | ICU | ICU / regex | regex | Identical | Virama/pulli stays attached to base consonants; characters do not link into multi-consonant clusters. |
+| Arabic, Persian, Urdu | ICU / regex | ICU | ICU / regex | regex | Identical | Tashkeel and shadda attach to base letters; Persian ZWNJ (U+200C) preserves word unity in ICU ports. |
+| Hebrew | ICU / regex | ICU | ICU / regex | regex | Identical | Niqqud and shin/sin dots attach to base consonants; geresh/gershayim within words are joined by ICU. |
+| Decimal digits of any script (`\p{Nd}`) | — | — | — | — | Identical | Unemphasised unless `emphasizeNumbers: true`; always consume a `saccade` index. |
+| Emoji, skin-tone modifiers, ZWJ sequences | — | — | — | — | Identical | Treated as separators; passed through untouched without splitting sequences. |
+| Full-width Latin (`ＨＥＬＬＯ`) | ICU / regex | ICU | ICU / regex | regex | Identical | Treated as standard letters. |
 
-## Per-script rationale
+---
 
-**Chinese, Japanese, Thai, Lao, Khmer, Burmese.** These scripts write words
-without spaces, so a fixation per *word* requires a dictionary. Every ICU
-build ships one, and all three ICU ports use it. The regex rule (one word per
-run) is the honest fallback: it never splits inside a word, it just makes the
-"word" too long. Single-character words (`我`, `は`) follow the ordinary
-single-character rule — emphasised at strength ≥ 3, plain below — so the
-default strength reads as "every word starts bold" in Japanese too.
+## Per-script rationale & Best practices
 
-**Korean.** Hangul is written with spaces, so the regex ports are as good as
-ICU here. The jamo case matters for text from older systems and from NFD
-normalisation (macOS file names, some databases): a syllable spelled as
-`L V T` jamo must count as one character, or a fixation of length 1 would
-land between the consonant and its vowel. All four ports compose jamo.
+### Scripts without spaces (Chinese, Japanese, Thai, Lao, Khmer, Burmese)
+Because these languages do not separate words with whitespace, word-level fixation requires a dictionary. Modern ICU distributions include precompiled dictionaries for these scripts. 
 
-**Indic scripts.** A consonant cluster such as `क्ष` (`क` + virama + `ष`) is
-one visual unit; splitting it between `<b>` and plain text breaks the ligature
-and shows a dangling half-form. Unicode 15.1 added rule GB9c to UAX #29 for
-exactly this reason, and it is now the behaviour of `Intl.Segmenter` (ICU 74+),
-Swift's `Character` (Swift 6+), ICU-backed Android and JDK 22+. The Python
-port and the core fallback implement the same rule with the Unicode 15.1
-linker and consonant tables (six scripts). Bold is a poor emphasis for these
-scripts in many fonts; use colour (see the root README).
+The fallback run rule (treating an unbroken run of Han, Kana, or Thai characters as a single word) provides a safe, dependency-free degradation: it never breaks inside a character or grapheme cluster, and single-character words (`我`, `は`) follow standard single-character rules (emphasised only at strength ≥ 3).
 
-**Arabic script and Hebrew.** Combining vowel points never occur alone, so the
-regex and ICU agree. The one difference is Persian's ZWNJ, which ICU treats as
-part of the word (UAX #29 `Extend`) and the regex treats as a separator; the
-`segmenter/bidi.json` fixture pins the ICU behaviour. Note that bold Arabic is
-often typographically unconvincing (Naskh faces with a single weight, or bold
-that merely thickens strokes); prefer colour or a different weight via
-`className`.
+### Korean (Hangul)
+Hangul is standardly written with spaces, allowing regex-based segmentation to achieve full parity with ICU. All ports support Hangul jamo composition: text normalized to NFD (common in macOS file systems) where syllables are stored as individual leading consonant (L), vowel (V), and trailing consonant (T) jamo is correctly counted as a single syllabic cluster.
 
-**Digits.** Suppression rule 1 in SPEC §2 is defined on `\p{Nd}`, so digit
-systems of every script — European `42`, Arabic-Indic `٤٢`, Devanagari `४२` —
-are numbers: no fixation by default, a fixation of the usual length with
-`emphasizeNumbers`, and they always consume a `saccade` index. Roman numerals
-and vulgar fractions are not `Nd` and are treated as words.
+### Indic scripts & Unicode 15.1 conjunct linking
+In Indic scripts, a consonant cluster such as Devanagari `क्ष` (`क` + virama + `ष`) forms an indivisible orthographic unit (akshara). Splitting it with markup would break font ligature shaping and display a malformed virama or half-consonant.
 
-**Emoji.** Neither the regex nor ICU makes a word out of an emoji, a skin-tone
-modifier, a ZWJ sequence or a variation selector, so they pass through as
-separators. The regex rule that a word never *starts* with a combining mark is
-what keeps `❤️`'s U+FE0F attached to the heart instead of becoming a
-one-character word.
+Unicode 15.1 introduced rule **GB9c** to UAX #29 to prevent splitting consonant conjuncts linked by a virama. All Smooth Reading ports strictly adhere to rule GB9c:
+- Modern ICU engines (`Intl.Segmenter`, Apple ICU, Android ICU) support GB9c natively.
+- The Kotlin and Python implementations enforce GB9c programmatically for the six designated linker scripts (Devanagari, Bengali, Gujarati, Oriya, Telugu, Malayalam), ensuring consistent behavior regardless of host JDK or system library versions.
 
-## Bidirectional text
+### Arabic, Persian, Urdu, and Hebrew
+Diacritical marks (Arabic tashkeel/harakat, Hebrew niqqud) attach to preceding base letters and never receive separate fixation splits. 
 
-The fixation is the logical start of every word — the characters read first —
-so Arabic and Hebrew words are emphasised on their right-hand edge without any
-direction-specific code. Three guarantees follow from that:
+In Persian, Zero-Width Non-Joiners (ZWNJ, U+200C) frequently join morphemes within a single compound word (e.g. `می‌خواهم`). ICU-backed ports treat ZWNJ as an internal `Extend` character, keeping the compound unified.
 
-1. **No direction changes.** The HTML renderers never emit `dir` attributes,
-   `<bdi>`/`<bdo>` wrappers or bidi control characters (LRM, RLM, ALM, the
-   embeddings, overrides and isolates), and the attributed-string renderers
-   never insert isolates. Whatever bidi context you pass in (`<p dir="rtl">`,
-   an RLM in the text) comes out verbatim.
-2. **Lossless.** Concatenating the `text` of every token — and the runs of
-   every attributed string — reproduces the input exactly. Every port has a
-   test that runs this over every fixture input in both suites, and a test
-   that the rendered markup with the emphasis tags stripped equals the escaped
-   input.
-3. **Mixed direction is tested.** `Hello مرحبا world`, `שלום world`, an
-   Arabic paragraph containing `Python` and `2015`, Hebrew with `ל-Berlin`,
-   a nested `<span lang="en">` inside `<p dir="rtl">`, and `saccade: 2` across
-   an embedded Latin word are fixtures.
+---
 
-## Known gaps and engine differences
+## Bidirectional text (RTL)
 
-These are the inputs on which engines were observed to disagree while the
-fixtures were written (Node 24.18 / ICU 76, Swift 6.3 on macOS 26, JDK 21 and
-26). The fixtures avoid them; the behaviour you get is whatever your runtime's
-ICU does.
+The fixation is always the **logical** beginning of each word (the first characters read):
+- Arabic and Hebrew words are naturally emphasised at their logical start, which renders on the visual right edge in RTL contexts.
+- **Zero direction interference**: Output strings and markup never introduce artificial `dir` attributes, `<bdi>` tags, or bidi control characters (such as LRM, RLM, or isolates). Existing contextual markup (such as `<p dir="rtl">`) is preserved verbatim.
+- **Lossless round-tripping**: Concatenating tokens or attributed string runs reconstructs the original input exactly.
+- **Mixed-direction validation**: The test suite validates complex mixed-direction passages (`Hello مرحبا world`, Hebrew with embedded Latin brand names, RTL paragraphs containing numbers and URLs).
 
-- **Indic conjuncts on Unicode < 15.1 engines.** `java.text.BreakIterator` in
-  JDKs before 22 splits `क्ष` after the virama. The Kotlin port and the
-  Python port therefore apply the GB9c linking rule themselves on top of the
-  engine's boundaries, and the TypeScript regex fallback does the same, so
-  `क्षत्रिय` counts 3 clusters everywhere. Only the `Intl.Segmenter` path
-  depends on the runtime's ICU, which is ≥ 15.1 in every current browser
-  and Node release.
-- **Khmer coeng and Myanmar virama.** Unicode 17 extends conjunct linking to
-  Khmer, Myanmar, Tai Tham, Balinese and Sundanese. ICU 76 and JDK 26 apply it
-  (`ខ្មែរ` = `ខ្មែ | រ`), Swift 6.3 does not (`ខ្ | មែ | រ`), and the SPEC §3
-  approximation does not. Fixtures use Khmer words without coeng stacks.
-- **Japanese inflections.** ICU 76 tokenises `しています` as `し | てい | ます`
-  (linguistically odd: `てい` is not a morpheme) and keeps `日本語` whole; Apple's
-  ICU gives `し | て | い | ます` and splits `日本 | 語`. Verb forms such as
-  `飲みました` (`飲 | み | ま | した` vs `飲み | まし | た`) differ too. The
-  fixtures use sentences on which both agree (`猫がテレビを見ている`,
-  `私はスマートフォンで「ニュース」を読む`).
-- **Thai compounds.** `ภาษาไทย` and `ประเทศไทย` are one word on Apple ICU and
-  `ภาษา | ไทย`, `ประเทศ | ไทย` in ICU 76; `วันนี้` / `ดีมาก` / `กินข้าว` split
-  in ICU 76 but not on Apple. The fixture uses `ฉันชอบอ่านหนังสือ`, which
-  agrees.
-- **Chinese two-character function words.** ICU 76 joins `他在`, `我在`, `他用`
-  before a Latin brand name; Apple ICU keeps `他 | 在`. `我用iPhone 15看视频`
-  agrees on both.
-- **Traditional Chinese under `CFStringTokenizer`.** With `locale: "zh"` the
-  Swift locale path splits `我們` and `學習` into single characters; `zh-Hant`,
-  `zh-TW` and the default (no locale) path break them correctly.
-- **Persian ZWNJ, Hebrew geresh, decimal numbers, underscores.** ICU joins
-  them into one word; the regex does not. They live in `fixtures/segmenter/`
-  (ZWNJ) or are excluded from the fixtures.
-- **Burmese spacing vowels in Python.** The approximation treats every `Mc`
-  mark as an extender, so `မြန်မာ` counts 3 clusters in Python and 4 in the
-  ICU ports. Burmese is not in `common`.
+---
 
-## How the fixtures were built
+## Typographic recommendations
 
-Expected outputs in `fixtures/common/scripts.json`,
-`fixtures/segmenter/cjk-extended.json` and `fixtures/segmenter/bidi.json` were
-computed by hand from SPEC §2 (percent table, `floor((n·p + 50) / 100)`, clamp,
-single-character and digit rules). Where ICU's dictionary decides the word
-boundaries, the boundaries were read from `Intl.Segmenter` and checked against
-Swift's tokenizer and the JDK, and only sentences on which those engines agree
-were kept; where a cluster count depends on the Unicode version, the fixture
-name says so. Invisible code points (combining diacritics, jamo, ZWJ/ZWNJ,
-RLM, skin-tone modifiers) are written as `\uXXXX` escapes in the JSON so that
-editors cannot silently normalise them.
+**Bold weights are often ineffective for non-Latin typography:**
+- Many Arabic, Devanagari, Bengali, and Thai typefaces do not offer distinct bold weights, or rely on synthetic bolding that degrades ligature legibility and obscures delicate diacritics.
+- We recommend styling fixations using semantic CSS classes or native color/opacity attributes rather than relying exclusively on bold:
+
+```css
+/* Web CSS */
+.sr-fixation {
+  font-weight: 600;
+  color: var(--sr-fixation-color, #1d4ed8);
+}
+.sr-rest {
+  opacity: var(--sr-rest-opacity, 0.85);
+}
+```
+
+```swift
+// Swift UIKit / AppKit
+SmoothReading.nsAttributedString(
+    text,
+    fixationAttributes: [.foregroundColor: UIColor.systemBlue]
+)
+```
+
+```kotlin
+// Jetpack Compose
+SmoothReading.annotatedString(
+    text,
+    fixationStyle = SpanStyle(color = MaterialTheme.colorScheme.primary),
+    restStyle = SpanStyle(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)),
+)
+```
+
+---
+
+## Known platform & Engine variations
+
+The test suite avoids ambiguous edge cases where system ICU implementations intentionally differ:
+- **Japanese grammatical inflections**: Different ICU versions segment verb endings (e.g. `しています` or `飲みました`) with varying grammatical granularity. Shared fixtures test declarative sentences with agreed-upon boundaries.
+- **Thai compound words**: Compounds such as `ภาษาไทย` may be treated as a single word on older Apple ICU releases and split into two words (`ภาษา` + `ไทย`) on ICU 76+. Shared test cases use sentences where segmentation is consistent across versions.
+- **Unicode 17 preview scripts**: Unicode 17 proposes extending conjunct linking to Khmer coeng stacks and Myanmar viramas. ICU 76 and JDK 26 preview this behavior, whereas current Swift and earlier ICU releases do not. Fixtures avoid disputed coeng stacks.
+
+---
+
+## Fixture methodology
+
+Expected test outputs in `fixtures/common/` and `fixtures/segmenter/` are verified against the mathematical specification ([docs/SPEC.md](SPEC.md)). Non-printable and combining Unicode characters (ZWJ, ZWNJ, RLM, combining marks, variation selectors) are encoded with explicit `\uXXXX` escapes in fixture JSON files to avoid unintended editor normalization.
