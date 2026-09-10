@@ -257,4 +257,4 @@ swift test
 
 ## License
 
-Apache-2.0 © Smooth Reading contributors.
+Apache-2.0. See [LICENSE](LICENSE).

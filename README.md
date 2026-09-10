@@ -152,7 +152,6 @@ cd android && ./gradlew test
 cd python && python -m pip install -e ".[dev]" && pytest && mypy --strict smooth_reading
 ```
 
-Contributions: not accepting external pull requests yet; see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the rules that keep the four ports
 in lockstep and [CHANGELOG.md](CHANGELOG.md) for release notes.
