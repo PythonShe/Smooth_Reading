@@ -1,9 +1,10 @@
 # Smooth Reading
 
-[![npm](https://img.shields.io/npm/v/@smooth-reading/core/next?label=npm&logo=npm)](https://www.npmjs.com/package/@smooth-reading/core)
+[![npm](https://img.shields.io/npm/v/@smooth-reading/core?label=npm&logo=npm)](https://www.npmjs.com/package/@smooth-reading/core)
 [![npm downloads](https://img.shields.io/npm/dm/@smooth-reading/core?label=npm%20downloads&logo=npm)](https://www.npmjs.com/package/@smooth-reading/core)
 [![PyPI](https://img.shields.io/pypi/v/smooth-reading?label=PyPI&logo=pypi&logoColor=white)](https://pypi.org/project/smooth-reading/)
 [![PyPI downloads](https://img.shields.io/pypi/dm/smooth-reading?label=PyPI%20downloads&logo=pypi&logoColor=white)](https://pypi.org/project/smooth-reading/)
+[![pub.dev](https://img.shields.io/pub/v/smooth_reading?label=pub.dev&logo=dart&logoColor=white)](https://pub.dev/packages/smooth_reading)
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.pythonshe/smooth-reading?label=Maven%20Central&logo=apachemaven)](https://central.sonatype.com/artifact/io.github.pythonshe/smooth-reading)
 [![SwiftPM](https://img.shields.io/github/v/release/PythonShe/Smooth_Reading?include_prereleases&label=SwiftPM&logo=swift&logoColor=white)](https://github.com/PythonShe/Smooth_Reading/releases)
 [![Swift versions](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2FPythonShe%2FSmooth_Reading%2Fbadge%3Ftype%3Dswift-versions)](https://swiftpackageindex.com/PythonShe/Smooth_Reading)
@@ -27,6 +28,7 @@ The technique is similar to commercial fixation-reading products, but this proje
 | [`SmoothReading`](swift) | Swift Package Manager | iOS 15+, macOS 12+, watchOS 8+, tvOS 15+, visionOS 1+ | Native Swift 6 library. `NSAttributedString` for UIKit/AppKit, `AttributedString` for SwiftUI. |
 | [`io.github.pythonshe:smooth-reading`](android) | Maven Central | Android (minSdk 24), JVM | `AnnotatedString` for Jetpack Compose, `Spanned` for Android Views, pure JVM core. |
 | [`smooth-reading`](python) | PyPI | Python 3.10+ | Zero-dependency Python library, type-annotated, with a built-in CLI. |
+| [`smooth_reading`](dart) | pub.dev | Dart 3.0+, Flutter (iOS, Android, web, desktop), server | Pure Dart. Sealed `Token` for `TextSpan` rendering, `toHtml`, `toMarkdown`, pluggable `Segmenter` for platform ICU. |
 
 ---
 
@@ -74,7 +76,7 @@ export function SmoothText({ children, ...options }) {
 
 ```swift
 // Package.swift
-.package(url: "https://github.com/PythonShe/Smooth_Reading.git", from: "0.1.0-rc.2")
+.package(url: "https://github.com/PythonShe/Smooth_Reading.git", from: "0.2.0")
 ```
 
 ```swift
@@ -91,7 +93,7 @@ Text(SmoothReading.attributedString("Smooth reading works.", options: SmoothOpti
 
 ```kotlin
 // build.gradle.kts — resolves from Maven Central
-implementation("io.github.pythonshe:smooth-reading:0.1.0-rc.2")
+implementation("io.github.pythonshe:smooth-reading:0.2.0")
 ```
 
 ```kotlin
@@ -119,6 +121,33 @@ to_html("Smooth reading works.")
 # '<b>Smo</b>oth <b>read</b>ing <b>wor</b>ks.'
 ```
 
+### Flutter & Dart
+
+```bash
+flutter pub add smooth_reading   # or: dart pub add smooth_reading
+```
+
+```dart
+import 'package:smooth_reading/smooth_reading.dart';
+
+// Flutter: build TextSpans from tokens (full widget in docs/recipes/flutter.md)
+TextSpan(children: [
+  for (final token in tokenize('Smooth reading works.'))
+    switch (token) {
+      WordToken(fixation: > 0, :final fixationText, :final restText) =>
+        TextSpan(children: [
+          TextSpan(text: fixationText, style: const TextStyle(fontWeight: FontWeight.w700)),
+          TextSpan(text: restText),
+        ]),
+      WordToken(:final text) || SeparatorToken(:final text) => TextSpan(text: text),
+    },
+]);
+
+// Server / web: HTML
+toHtml('Smooth reading works.');
+// '<b>Smo</b>oth <b>read</b>ing <b>wor</b>ks.'
+```
+
 ---
 
 ## Why another library?
@@ -127,9 +156,9 @@ Existing open-source implementations are typically single-purpose string replace
 
 Smooth Reading was built to provide an enterprise-grade, specification-backed foundation:
 
-- **Strict cross-platform parity**: Governed by a formal specification ([docs/SPEC.md](docs/SPEC.md)). Every port passes the same shared test fixtures (`fixtures/common/`), guaranteeing identical output across Web, iOS, macOS, Android, and Python.
+- **Strict cross-platform parity**: Governed by a formal specification ([docs/SPEC.md](docs/SPEC.md)). Every port passes the same shared test fixtures (`fixtures/common/`), guaranteeing identical output across Web, iOS, macOS, Android, Python, and Dart/Flutter.
 - **Multilingual & Unicode fidelity**: Correct dictionary word boundaries for non-space scripts (Chinese, Japanese, Thai, Lao, Khmer, Burmese), ligature-safe Indic conjuncts (Unicode 15.1 GB9c), non-destructive bidirectional (RTL) handling for Arabic and Hebrew, and grapheme cluster counting instead of naive code units.
-- **Modern UI integration**: Framework-native primitives without unsafe HTML injection. Renders directly as React/Vue/Svelte components, Jetpack Compose `AnnotatedString`, UIKit/AppKit `NSAttributedString`, and SwiftUI `AttributedString`.
+- **Modern UI integration**: Framework-native primitives without unsafe HTML injection. Renders directly as React/Vue/Svelte components, Flutter `TextSpan`s, Jetpack Compose `AnnotatedString`, UIKit/AppKit `NSAttributedString`, and SwiftUI `AttributedString`.
 - **Zero runtime dependencies**: Pure Apache-2.0 license, zero external dependencies across all ports, zero telemetry, and zero network calls. Runs completely offline.
 
 ---
@@ -179,17 +208,17 @@ Treat it as an optional reading *preference* you can offer your users, not an ob
 
 International scripts and right-to-left text are primary architectural requirements of this project, not an afterthought. Every port passes `fixtures/common/scripts.json` (Korean, Vietnamese, Hindi, Bengali, Tamil, Arabic, Hebrew, Persian, Urdu, Greek, Turkish, German, mixed-direction text, emoji); ICU-backed ports also pass `fixtures/segmenter/` (Chinese, Japanese, Thai, Lao, Khmer, Burmese, bidi paragraphs). See [docs/LANGUAGES.md](docs/LANGUAGES.md) for the detailed specification and engine comparisons.
 
-| Script | `@smooth-reading/core` | Swift | Android | Python | Status |
-| --- | --- | --- | --- | --- | --- |
-| Latin, Greek, Cyrillic, Vietnamese, Turkish, German | `Intl.Segmenter` (regex fallback) | ICU | ICU or spec regex | spec regex | Identical everywhere |
-| Korean (Hangul, spaces) | `Intl.Segmenter` (regex fallback) | ICU | ICU or spec regex | spec regex | Identical; decomposed jamo compose in all ports |
-| Chinese, Japanese | `Intl.Segmenter` dictionary | ICU dictionary | `android.icu` dictionary | One word per run | Dictionary breaks in ICU ports; predictable run rule in Python |
-| Thai, Lao, Khmer, Burmese | `Intl.Segmenter` dictionary | ICU dictionary | `android.icu` dictionary | One word per run | Dictionary breaks in ICU ports; predictable run rule in Python |
-| Devanagari, Bengali, Gujarati, Oriya, Telugu, Malayalam | `Intl.Segmenter` (regex fallback) | ICU | ICU or spec regex | spec regex | Identical; conjuncts (`क्ष`) are one cluster (Unicode 15.1 GB9c) |
-| Tamil and other Indic scripts | `Intl.Segmenter` (regex fallback) | ICU | ICU or spec regex | spec regex | Identical; marks stay attached to base consonants |
-| Arabic, Persian, Urdu, Hebrew | `Intl.Segmenter` (regex fallback) | ICU | ICU or spec regex | spec regex | Identical; tashkeel and niqqud stay with base letters; Persian ZWNJ preserved in ICU ports |
-| Digits of any script (`\p{Nd}`) | — | — | — | — | Unemphasised unless `emphasizeNumbers: true`; still count towards `saccade` |
-| Emoji, modifiers, ZWJ sequences | — | — | — | — | Treated as separators; passed through untouched |
+| Script | `@smooth-reading/core` | Swift | Android | Python | Dart | Status |
+| --- | --- | --- | --- | --- | --- | --- |
+| Latin, Greek, Cyrillic, Vietnamese, Turkish, German | `Intl.Segmenter` (regex fallback) | ICU | ICU or spec regex | spec regex | spec regex | Identical everywhere |
+| Korean (Hangul, spaces) | `Intl.Segmenter` (regex fallback) | ICU | ICU or spec regex | spec regex | spec regex | Identical; decomposed jamo compose in all ports |
+| Chinese, Japanese | `Intl.Segmenter` dictionary | ICU dictionary | `android.icu` dictionary | One word per run | One word per run | Dictionary breaks in ICU ports; predictable run rule in Python |
+| Thai, Lao, Khmer, Burmese | `Intl.Segmenter` dictionary | ICU dictionary | `android.icu` dictionary | One word per run | One word per run | Dictionary breaks in ICU ports; predictable run rule in Python |
+| Devanagari, Bengali, Gujarati, Oriya, Telugu, Malayalam | `Intl.Segmenter` (regex fallback) | ICU | ICU or spec regex | spec regex | spec regex | Identical; conjuncts (`क्ष`) are one cluster (Unicode 15.1 GB9c) |
+| Tamil and other Indic scripts | `Intl.Segmenter` (regex fallback) | ICU | ICU or spec regex | spec regex | spec regex | Identical; marks stay attached to base consonants |
+| Arabic, Persian, Urdu, Hebrew | `Intl.Segmenter` (regex fallback) | ICU | ICU or spec regex | spec regex | spec regex | Identical; tashkeel and niqqud stay with base letters; Persian ZWNJ preserved in ICU ports |
+| Digits of any script (`\p{Nd}`) | — | — | — | — | — | Unemphasised unless `emphasizeNumbers: true`; still count towards `saccade` |
+| Emoji, modifiers, ZWJ sequences | — | — | — | — | — | Treated as separators; passed through untouched |
 
 ### Typographic considerations
 
@@ -216,18 +245,20 @@ Emitted markup and attributed strings never insert `dir` attributes, `<bdi>` ele
 
 ## Releases
 
-All four ports share one version number and one git tag (`vX.Y.Z`); see
+All five ports share one version number and one git tag (`vX.Y.Z`); see
 [CHANGELOG.md](CHANGELOG.md) for release notes.
 
 | Port | Where it is published | Current channel |
 | --- | --- | --- |
-| `@smooth-reading/core` | [npm](https://www.npmjs.com/package/@smooth-reading/core) | prerelease under the `next` tag: `pnpm add @smooth-reading/core@next` |
-| `SmoothReading` | [GitHub releases](https://github.com/PythonShe/Smooth_Reading/releases) (SwiftPM resolves git tags directly) and the [Swift Package Index](https://swiftpackageindex.com/PythonShe/Smooth_Reading) | prerelease tag: `from: "0.1.0-rc.2"` |
-| `io.github.pythonshe:smooth-reading` | [Maven Central](https://central.sonatype.com/artifact/io.github.pythonshe/smooth-reading) | prerelease version: `0.1.0-rc.2` |
-| `smooth-reading` | [PyPI](https://pypi.org/project/smooth-reading/) | prerelease: `pip install --pre smooth-reading` |
+| `@smooth-reading/core` | [npm](https://www.npmjs.com/package/@smooth-reading/core) | `pnpm add @smooth-reading/core` (`0.2.0`) |
+| `SmoothReading` | [GitHub releases](https://github.com/PythonShe/Smooth_Reading/releases) (SwiftPM resolves git tags directly) and the [Swift Package Index](https://swiftpackageindex.com/PythonShe/Smooth_Reading) | `from: "0.2.0"` |
+| `io.github.pythonshe:smooth-reading` | [Maven Central](https://central.sonatype.com/artifact/io.github.pythonshe/smooth-reading) | `0.2.0` |
+| `smooth-reading` | [PyPI](https://pypi.org/project/smooth-reading/) | `pip install smooth-reading` (`0.2.0`) |
+| `smooth_reading` | [pub.dev](https://pub.dev/packages/smooth_reading) | `dart pub add smooth_reading` (`0.2.0`) |
 
-Prereleases are for integration testing ahead of `0.1.0`; the public API is
-described in [docs/SPEC.md](docs/SPEC.md) and may still change before then.
+The public API is described in [docs/SPEC.md](docs/SPEC.md); it follows
+semantic versioning from `0.2.0` on, with breaking changes only in minor
+versions while the major is `0`.
 
 ## Contributing
 
@@ -247,6 +278,9 @@ cd android && ./gradlew test
 
 # Python package
 cd python && python -m pip install -e ".[dev]" && pytest && mypy --strict smooth_reading
+
+# Dart package
+cd dart && dart pub get && dart analyze && dart test
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on maintaining multi-port parity and [CHANGELOG.md](CHANGELOG.md) for version release notes.

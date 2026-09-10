@@ -19,7 +19,7 @@ first-party ports that must produce identical output.
 
 ## Running the test suites
 
-Every change must leave all four suites green. From the repository root:
+Every change must leave all five suites green. From the repository root:
 
 ```bash
 # TypeScript core (packages/core)
@@ -33,6 +33,9 @@ cd android && ./gradlew test
 
 # Python package
 cd python && python -m pip install -e ".[dev]" && pytest && mypy --strict smooth_reading
+
+# Dart package
+cd dart && dart pub get && dart analyze && dart test
 ```
 
 `pnpm typecheck` runs the TypeScript type check on its own, and `swift test`
@@ -51,8 +54,8 @@ commit:
 1. `docs/SPEC.md`;
 2. `fixtures/` (`common/` must pass in every port, `segmenter/` wherever an
    ICU word breaker exists);
-3. all four ports — `packages/core/`, `swift/`, `android/`, `python/` — with
-   their fixture tests passing.
+3. all five ports — `packages/core/`, `swift/`, `android/`, `python/`,
+   `dart/` — with their fixture tests passing.
 
 If an implementation needs a rule the spec lacks, add it to the spec first.
 A change that breaks a CJK, Indic, Thai, RTL or grapheme-cluster fixture is a
@@ -69,7 +72,7 @@ Framework adapters (React, Vue, Svelte, Angular, …) are copy-paste recipes in
 ```
 
 `type` is one of `feat`, `fix`, `refactor`, `docs`, `chore`, `test`, `perf`,
-`style`. `scope` is one of `core`, `swift`, `android`, `python`, `recipes`,
+`style`. `scope` is one of `core`, `swift`, `android`, `python`, `dart`, `recipes`,
 `fixtures`, `spec`, `examples`, `workspace`; cross-package changes combine
 scopes (`spec,core,python`). Do not add generated-by or co-author footers.
 
@@ -97,9 +100,11 @@ package metadata.
 - Generated artifacts (`dist/`, `.build/`, `build/`, `.venv/`, `node_modules/`)
   are never committed.
 - Versions are bumped together across all ports and releases are tagged
-  `vX.Y.Z`. Push the tag, then run `gh workflow run release.yml -f tag=vX.Y.Z`.
+  `vX.Y.Z`. Push the tag, then run
+  `gh workflow run release.yml --ref vX.Y.Z -f tag=vX.Y.Z`.
   The workflow publishes `@smooth-reading/core` to npm, `smooth-reading` to
-  PyPI (trusted publishing), `io.github.pythonshe:smooth-reading` and
+  PyPI (trusted publishing), `smooth_reading` to pub.dev (automated
+  publishing), `io.github.pythonshe:smooth-reading` and
   `smooth-reading-core` to Maven Central,
   and creates the GitHub release that SwiftPM resolves. Prerelease tags
   (`-rc.N`, `-beta.N`) land under npm's `next` dist-tag and as PyPI

@@ -1,0 +1,28 @@
+name: smooth_reading
+description: >-
+  Guided fixation reading: emphasise the leading letters of every word so the
+  eye has an artificial fixation point. Zero dependencies, pure Dart, works in
+  Flutter (TextSpan), on the server and on the web. Same algorithm and
+  identical output as the TypeScript, Swift, Kotlin and Python ports.
+version: 0.2.0
+repository: https://github.com/PythonShe/Smooth_Reading
+homepage: https://github.com/PythonShe/Smooth_Reading/tree/main/dart
+issue_tracker: https://github.com/PythonShe/Smooth_Reading/issues
+documentation: https://github.com/PythonShe/Smooth_Reading/blob/main/docs/SPEC.md
+topics:
+  - text
+  - typography
+  - reading
+  - accessibility
+  - unicode
+
+environment:
+  # Dart 3.0 (May 2023, Flutter 3.10) is the floor: sealed classes and records
+  # are used in the public API. CI tests both 3.0.0 and the latest stable.
+  sdk: ^3.0.0
+
+# Zero runtime dependencies (monorepo policy). Dev dependencies only; the
+# ranges are wide so `dart pub get` also resolves on the Dart 3.0 floor.
+dev_dependencies:
+  lints: '>=2.1.0 <7.0.0'
+  test: '>=1.24.0 <2.0.0'

@@ -40,6 +40,29 @@ jobs:
       - run: python -m pytest -q
       - run: python -m mypy --strict smooth_reading
 
+  dart:
+    name: Dart package
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dart
+    strategy:
+      matrix:
+        # The pubspec floor (Dart 3.0) and the latest stable.
+        sdk: ["3.0.0", stable]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: ${{ matrix.sdk }}
+      - run: dart pub get
+      - run: dart analyze --fatal-infos
+      - run: dart test
+      - if: matrix.sdk == 'stable'
+        run: dart format --output=none --set-exit-if-changed .
+      - if: matrix.sdk == 'stable'
+        run: dart pub publish --dry-run
+
   swift:
     name: Swift package
     runs-on: macos-latest

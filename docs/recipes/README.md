@@ -1,6 +1,6 @@
 # Framework recipes
 
-Framework adapters are intentionally not published as separate packages. Instead, this directory provides lightweight, copy-paste recipes built directly on `@smooth-reading/core`'s `tokenize()`.
+Framework adapters are intentionally not published as separate packages. Instead, this directory provides lightweight, copy-paste recipes built directly on the `tokenize()` of the port for that runtime: `@smooth-reading/core` for JavaScript frameworks, `smooth_reading` for Flutter.
 
 ## Core design principles
 
@@ -16,6 +16,7 @@ Framework adapters are intentionally not published as separate packages. Instead
 | --- | --- | --- | --- |
 | **React / Next.js / Remix** | [react.md](react.md) | React 18, 19, RSC, Remix | Pure function component, TanStack Query integration, and ref callback lifecycle. |
 | **React Native / Expo** | [react-native.md](react-native.md) | React Native 0.72+, Expo SDK 50+ | Nested `<Text>` rendering with Hermes engine compatibility. |
+| **Flutter** | [flutter.md](flutter.md) | Flutter 3.10+ (Dart 3.0+) | `SmoothText` widget from `TextSpan`s, selectable variant, ICU `Segmenter` over a platform channel. |
 | **Vue 3** | [vue.md](vue.md) | Vue 3.3+ | `<script setup>` with computed tokens, plus a `v-smooth` directive for live DOM. |
 | **Svelte 5** | [svelte.md](svelte.md) | Svelte 5 (Runes) | Runes-based component (`$props`, `$derived`) and `use:smooth` action. |
 | **Angular** | [angular.md](angular.md) | Angular 17+ | Signals-based standalone component and directive. |

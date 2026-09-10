@@ -1,7 +1,9 @@
 name: Release
 
 # Manual trigger only, like ci.yml. Push the version tag first, then:
-#   gh workflow run release.yml -f tag=vX.Y.Z
+#   gh workflow run release.yml --ref vX.Y.Z -f tag=vX.Y.Z
+# `--ref` matters for pub.dev: its automated publishing checks that the
+# workflow ran on a tag matching the configured pattern (`v{{version}}`).
 # Publishing jobs skip versions that already exist, so re-running is safe.
 
 on:
@@ -47,6 +49,8 @@ jobs:
           check android/build.gradle.kts "version = \"$version\""
           check python/pyproject.toml "version = \"$pyversion\""
           check python/smooth_reading/__init__.py "__version__ = \"$pyversion\""
+          check dart/pubspec.yaml "version: $version"
+          check dart/lib/src/version.dart "packageVersion = '$version'"
           check CHANGELOG.md "## $version"
           exit $fail
 
@@ -121,6 +125,40 @@ jobs:
           packages-dir: python/dist
           print-hash: true
           skip-existing: true
+
+  pub:
+    name: pub.dev (smooth_reading)
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # pub.dev automated publishing (OIDC)
+    defaults:
+      run:
+        working-directory: dart
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag }}
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+      - run: dart pub get
+      - run: dart analyze --fatal-infos && dart test
+      - name: Publish
+        run: |
+          set -eu
+          version="${{ needs.verify.outputs.version }}"
+          if ! curl -fsS "https://pub.dev/api/packages/smooth_reading" >/dev/null 2>&1; then
+            echo "::warning::smooth_reading is not on pub.dev yet; the first version must be published manually (dart pub publish), then enable automated publishing. Skipping."; exit 0
+          fi
+          if curl -fsS "https://pub.dev/api/packages/smooth_reading/versions/$version" >/dev/null 2>&1; then
+            echo "smooth_reading $version is already on pub.dev, skipping"; exit 0
+          fi
+          # setup-dart exchanges the GitHub OIDC token for a pub.dev token when
+          # id-token: write is granted and pub.dev has automated publishing
+          # enabled for this repository (Admin tab of the package).
+          dart pub publish --force
 
   maven-central:
     name: Maven Central (io.github.pythonshe)

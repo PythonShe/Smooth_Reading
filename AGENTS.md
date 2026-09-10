@@ -11,13 +11,15 @@ one first-party port per platform runtime. License: Apache-2.0.
 | `swift/` | `SmoothReading` (SPM) | Swift 6, iOS 17+/macOS 14+ | Same algorithm; `NSAttributedString` + `UILabel`/`NSTextField` helpers for UIKit/AppKit (primary), `AttributedString` for SwiftUI, `html()` |
 | `android/` | `io.github.pythonshe:smooth-reading` | Kotlin, Gradle, minSdk 24 | Same algorithm; Compose `AnnotatedString`, `Spanned`, `toHtml()` |
 | `python/` | `smooth-reading` (PyPI) | Python 3.10+, zero deps | Same algorithm, regex tokenizer, `smooth-reading` CLI |
+| `dart/` | `smooth_reading` (pub.dev) | Dart 3.0+, zero deps | Same algorithm, regex tokenizer, sealed `Token` for Flutter `TextSpan`, pluggable `Segmenter`, `toHtml`/`toMarkdown` |
 | `fixtures/` | shared fixtures | JSON | `common/` must pass in every port; `segmenter/` only where an ICU word-breaker exists |
 | `examples/` | demos | Vite | Playground apps, not published |
 | `docs/` | docs | Markdown | `SPEC.md` is the contract; `docs/recipes/` holds framework snippets; `docs/internal/` is gitignored |
 
-Support policy: first-party ports are exactly the four above, one per
-platform runtime. Framework adapters (React, Vue, Svelte, Angular, …) are
-never published as packages; they are copy-paste recipes in `docs/recipes/`.
+Support policy: first-party ports are exactly the five above, one per
+platform runtime. Framework adapters (React, Vue, Svelte, Angular, Flutter
+widgets, …) are never published as packages; they are copy-paste recipes in
+`docs/recipes/`.
 Community forks are welcome to publish their own.
 
 Algorithm boundary: `docs/SPEC.md` owns the rules (fixation ratio table,
@@ -56,7 +58,7 @@ lacks, add it to the spec in the same commit.
 ## Stack Policy
 
 - **Latest everything**: newest stable pnpm, TypeScript, Vite, Vitest, Swift,
-  Kotlin, Gradle, Python and all dependencies. When bumping, query the registries
+  Kotlin, Gradle, Python, Dart and all dependencies. When bumping, query the registries
   (`npm view <pkg> version`, PyPI) for actual latest stable — never guess from
   training data. Record any forced downgrade (e.g. a tool that does not yet
   support the newest TypeScript) as a comment next to the pin.
@@ -77,6 +79,11 @@ lacks, add it to the spec in the same commit.
 - **Android: one artifact serves both Views and Compose.**
   `smooth-reading-core` is pure JVM; `smooth-reading` adds `spanned()` for
   `TextView` and `annotatedString()` for Compose.
+- **Dart: pure Dart, no Flutter dependency.** `smooth_reading` depends only
+  on `dart:core` so it runs on the server and the web as well as in Flutter.
+  Flutter widgets are recipes (`docs/recipes/flutter.md`) built on the sealed
+  `Token` type; never import `package:flutter` from `dart/lib/`. The SDK
+  floor is Dart 3.0; CI tests the floor and the latest stable.
 - **No `useEffect` in React code or recipes.** Render from `tokenize()` as a
   pure function of props (SSR/RSC safe, no re-run hazards). Fetched HTML is
   transformed in the data layer (`toHtml` inside a TanStack Query `select`,
@@ -114,11 +121,12 @@ lacks, add it to the spec in the same commit.
 
 - `ci.yml` — manual trigger only (`workflow_dispatch`; run via the Actions tab or `gh workflow run ci.yml`): JS on Node 24 (pnpm frozen install, build, typecheck, test),
   Swift (`swift test` on macOS), Android (`./gradlew test`), Python (pytest +
-  mypy on 3.10 and latest).
+  mypy on 3.10 and latest), Dart (analyze + test on 3.0.0 and stable).
 - `release.yml` — manual trigger with a `tag` input
   (`gh workflow run release.yml -f tag=vX.Y.Z`): verifies every port carries
-  the tagged version, then publishes npm, PyPI and Maven Central and creates
-  the GitHub release SwiftPM resolves from. Versions are bumped together
+  the tagged version, then publishes npm, PyPI, pub.dev and Maven Central and
+  creates the GitHub release SwiftPM resolves from. Run it with
+  `--ref vX.Y.Z` so pub.dev's tag check passes. Versions are bumped together
   across all ports; keep every package at the same version and tag releases
   `vX.Y.Z` (Python spells prereleases per PEP 440, e.g. `0.1.0rc1`).
 
@@ -136,6 +144,7 @@ lacks, add it to the spec in the same commit.
 | `swift` | Changes within `swift/` |
 | `android` | Changes within `android/` |
 | `python` | Changes within `python/` |
+| `dart` | Changes within `dart/` |
 | `recipes` | Changes within `docs/recipes/` |
 | `fixtures` | Changes within `fixtures/` |
 | `spec` | Changes to `docs/SPEC.md` |
@@ -150,7 +159,8 @@ Cross-package changes may combine scopes (`spec,core,python`).
   package-specific source or config at the root.
 - Generated artifacts are never committed: `dist/`, `coverage/`,
   `node_modules/`, `python/.venv/`, `__pycache__/`, `*.egg-info/`,
-  `swift/.build/`, `android/build/`, `android/.gradle/`.
+  `swift/.build/`, `android/build/`, `android/.gradle/`, `dart/.dart_tool/`,
+  `dart/pubspec.lock` (a library, so the lockfile is not committed).
 - `docs/internal/` is gitignored on purpose; do not force-add it.
 - No personal information (real names, emails) in README or other
   public-facing docs.
@@ -163,3 +173,6 @@ Cross-package changes may combine scopes (`spec,core,python`).
 - Node 24 ships full ICU, so `Intl.Segmenter` fixtures run locally; CI uses
   the same Node major.
 - Python 3.14 is the local default; the package must still support 3.10.
+- Dart comes from fvm (`~/fvm_cache/default/bin`); the package must still
+  support Dart 3.0 (a 3.0.0 SDK zip can be unpacked into the scratchpad to
+  check).
