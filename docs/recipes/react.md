@@ -43,21 +43,68 @@ Large texts: if a very long article re-renders often for unrelated reasons, memo
 export const SmoothText = memo(function SmoothText({ children, ...options }: Props) { /* as above */ });
 ```
 
-Applying to existing rendered HTML (a CMS article you receive as a string) is the one case that needs DOM access. Use a **ref callback**, not `useEffect`: React calls it once when the node mounts and once with `null` when it unmounts, which is exactly the apply/restore lifecycle, and it never re-runs on unrelated renders.
+## Content you fetch (CMS, API, Markdown pipeline)
+
+Do the transform in the data layer, not in the DOM. `toHtml` is a pure string function, so it belongs in the query's `select` (TanStack Query), a route loader (Remix, React Router), or a server component. The component then renders already-emphasised HTML once, with nothing to synchronise afterwards.
+
+TanStack Query:
+
+```tsx
+import { useQuery } from "@tanstack/react-query";
+import { toHtml } from "@smooth-reading/core";
+
+const smoothOptions = { fixation: 3, tag: "span", className: "sr-fixation" } as const;
+
+export function Article({ id }: { id: string }) {
+  const { data } = useQuery({
+    queryKey: ["article", id],
+    queryFn: () => fetch(`/api/articles/${id}`).then((r) => r.text()),
+    select: (html) => toHtml(html, smoothOptions), // memoised by Query; re-runs only when data changes
+  });
+  if (!data) return null;
+  return <div dangerouslySetInnerHTML={{ __html: data }} />; // your own trusted markup
+}
+```
+
+Server component or loader (Next.js App Router, Remix, React Router):
+
+```tsx
+import { toHtml } from "@smooth-reading/core";
+
+export default async function ArticlePage({ params }: { params: { id: string } }) {
+  const html = await getArticleHtml(params.id);
+  return <div dangerouslySetInnerHTML={{ __html: toHtml(html, { fixation: 3 }) }} />;
+}
+```
+
+Let users change the strength: keep `fixation` in state or the URL and include it in the query key or `select`; Query recomputes the derived HTML, and nothing touches the DOM directly.
+
+```tsx
+const [fixation, setFixation] = useState<1 | 2 | 3 | 4 | 5>(3);
+const { data } = useQuery({
+  queryKey: ["article", id],
+  queryFn: fetchArticle,
+  select: useCallback((html: string) => toHtml(html, { fixation }), [fixation]),
+});
+```
+
+## Last resort: markup you do not own
+
+If the HTML is already in the DOM and you cannot run it through `toHtml` first (a third-party widget, a portal you do not control), use `applyToElement` with a **ref callback**. React calls it once when the node mounts and once with `null` on unmount, which matches the apply/restore lifecycle without an effect.
 
 ```tsx
 "use client";
 import { useCallback, useRef } from "react";
 import { applyToElement } from "@smooth-reading/core";
 
-export function SmoothArticle({ html }: { html: string }) {
+export function SmoothWidget({ children }: { children: React.ReactNode }) {
   const restore = useRef<() => void>();
   const attach = useCallback((node: HTMLDivElement | null) => {
     restore.current?.();
     restore.current = node ? applyToElement(node, { fixation: 3 }) : undefined;
   }, []);
-  return <div ref={attach} dangerouslySetInnerHTML={{ __html: html }} />; // html is your own trusted markup
+  return <div ref={attach}>{children}</div>;
 }
 ```
 
-Prefer the pure component whenever you control the text; keep `applyToElement` for markup you do not own.
+Order of preference: pure `SmoothText` when you own the text, `toHtml` in the data layer when you fetch HTML, `applyToElement` via ref callback only for DOM you do not own.
