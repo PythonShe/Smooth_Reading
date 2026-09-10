@@ -25,6 +25,22 @@ round-half-up, saccade counting, tokenizer, HTML escaping). Code follows the
 spec, never the other way round. If an implementation needs a rule the spec
 lacks, add it to the spec in the same commit.
 
+## Product Goals
+
+- **CJK, other Asian scripts and RTL are the key selling point**, not an
+  afterthought. Chinese, Japanese, Korean, Thai, Vietnamese, Hindi and other
+  Indic scripts, Arabic, Hebrew, Persian and Urdu must work correctly in every
+  ICU-backed port (core via `Intl.Segmenter`, Swift, Android) and degrade
+  predictably in the regex-only Python port. `fixtures/segmenter/` and
+  `fixtures/common/scripts.json` are the proof; a change that breaks one of
+  those fixtures is a release blocker.
+- Bidirectional text: emitted markup and attributed strings must never alter
+  bidi ordering (no direction-changing wrappers, no `dir` attributes); the
+  fixation is always the logical start of the word. Mixed LTR/RTL inputs are
+  part of the fixture suite.
+- Grapheme clusters, never code units: combining marks, Indic conjuncts,
+  Thai vowel signs, Hangul jamo and emoji sequences are never split.
+
 ## Naming Policy
 
 - The commercial product this technique is known by is a registered
