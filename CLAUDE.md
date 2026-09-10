@@ -89,7 +89,7 @@ lacks, add it to the spec in the same commit.
 
 ## CI/CD (GitHub Actions)
 
-- `ci.yml` — on push/PR: JS (pnpm frozen install, build, typecheck, test),
+- `ci.yml` — manual trigger only (`workflow_dispatch`; run via the Actions tab or `gh workflow run ci.yml`): JS on Node 24 (pnpm frozen install, build, typecheck, test),
   Swift (`swift test` on macOS), Android (`./gradlew test`), Python (pytest +
   mypy on 3.10 and latest).
 - Publishing is manual for now (npm, SPM via git tag, Maven Central, PyPI).
