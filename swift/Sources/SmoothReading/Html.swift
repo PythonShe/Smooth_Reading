@@ -7,7 +7,8 @@ extension SmoothReading {
     ///
     /// When ``HtmlOptions/ignoreHtmlTags`` is `true` (the default):
     /// - existing tags are passed through verbatim (a `<` only starts markup
-    ///   when followed by a letter, `/`, `!` or `?` and closed by a `>`);
+    ///   when followed by a letter, `/`, `!` or `?`; a tag ends at the first
+    ///   `>`, a comment at `-->` and a CDATA section at `]]>`);
     /// - existing character references such as `&amp;` or `&#x27;` are passed
     ///   through verbatim and act as word boundaries; a bare `&` is escaped;
     /// - the contents of ``HtmlOptions/skipTags`` elements — plus the emphasis
@@ -37,8 +38,9 @@ extension SmoothReading {
         var pendingStart = text.startIndex
         var skipTag: String?
         var skipDepth = 0
-        // Once a search for `>` fails, no later `<` can start a tag either;
-        // remembering that keeps a text full of bare `<` linear.
+        // Once a search for `>` fails, no later `<` can start a tag either
+        // (`-->` and `]]>` contain one too); remembering that keeps a text full
+        // of bare `<` linear.
         var noClosingBracketAhead = false
 
         func flushText(upTo end: String.Index) {
@@ -56,12 +58,11 @@ extension SmoothReading {
             case "<" where !noClosingBracketAhead:
                 let next = text.index(after: cursor)
                 guard next < text.endIndex, startsMarkup(text[next]) else { break }
-                guard let close = text[next...].firstIndex(of: ">") else {
+                guard let tagEnd = markupEnd(in: text, from: cursor) else {
                     noClosingBracketAhead = true
                     break
                 }
                 flushText(upTo: cursor)
-                let tagEnd = text.index(after: close)
                 let raw = text[cursor..<tagEnd]
                 out += raw  // tags are always verbatim
                 let tag = parseTag(raw)
@@ -154,6 +155,33 @@ extension SmoothReading {
         guard let byte = character.asciiValue else { return false }
         return isAsciiLetter(byte) || byte == UInt8(ascii: "/") || byte == UInt8(ascii: "!")
             || byte == UInt8(ascii: "?")
+    }
+
+    /// Markup blocks that may contain a bare `>` (spec §4): each entry is the
+    /// opener and its terminator. Mirrors `BLOCKS` in the reference lexer.
+    private static let blocks: [(opener: String, terminator: String)] = [
+        ("<!--", "-->"),
+        ("<![CDATA[", "]]>"),
+    ]
+
+    /// Index just past the markup starting at `text[start]` (a `<` that
+    /// ``startsMarkup(_:)`` accepted), or `nil` when it is unterminated.
+    ///
+    /// Spec §4: a tag, processing instruction or declaration ends at the
+    /// **first** `>` — quoted attribute values are not parsed. A comment
+    /// `<!--` ends at the first `-->` and a CDATA section `<![CDATA[` at the
+    /// first `]]>`, both may contain `>`. An unterminated comment or CDATA
+    /// block degrades to an ordinary `<!...>` declaration, exactly like
+    /// `findTagEnd` in the reference lexer.
+    static func markupEnd(in text: String, from start: String.Index) -> String.Index? {
+        for block in blocks where text[start...].hasPrefix(block.opener) {
+            let bodyStart = text.index(start, offsetBy: block.opener.count)
+            if let close = text[bodyStart...].range(of: block.terminator) {
+                return close.upperBound
+            }
+        }
+        guard let close = text[text.index(after: start)...].firstIndex(of: ">") else { return nil }
+        return text.index(after: close)
     }
 
     /// If `text[start]` (an `&`) begins a character reference —

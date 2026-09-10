@@ -38,11 +38,15 @@ final class FixationLengthTests: XCTestCase {
     }
 
     func testRoundHalfUpNeverBankers() {
-        XCTAssertEqual(SmoothReading.roundHalfUp(0.5), 1)
-        XCTAssertEqual(SmoothReading.roundHalfUp(1.5), 2)
-        XCTAssertEqual(SmoothReading.roundHalfUp(2.5), 3)  // banker's rounding would give 2
-        XCTAssertEqual(SmoothReading.roundHalfUp(3.5), 4)
-        XCTAssertEqual(SmoothReading.roundHalfUp(2.49), 2)
+        // Spec §2: `floor((n * percent + 50) / 100)` in integer arithmetic.
+        XCTAssertEqual(SmoothReading.roundHalfUp(graphemes: 1, percent: 50), 1)  // 0.5
+        XCTAssertEqual(SmoothReading.roundHalfUp(graphemes: 3, percent: 50), 2)  // 1.5
+        XCTAssertEqual(SmoothReading.roundHalfUp(graphemes: 5, percent: 50), 3)  // 2.5: banker's would give 2
+        XCTAssertEqual(SmoothReading.roundHalfUp(graphemes: 7, percent: 50), 4)  // 3.5
+        XCTAssertEqual(SmoothReading.roundHalfUp(graphemes: 7, percent: 35), 2)  // 2.45
+        // 3 * 0.35 is 1.0499… as a Double; the integer form gives exactly 1.
+        XCTAssertEqual(SmoothReading.roundHalfUp(graphemes: 3, percent: 35), 1)
+        XCTAssertEqual(length("one", SmoothOptions(fixation: 2)), 1)
     }
 
     func testNumbers() {

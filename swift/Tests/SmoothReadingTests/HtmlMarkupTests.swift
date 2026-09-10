@@ -35,6 +35,9 @@ final class HtmlMarkupTests: XCTestCase {
         XCTAssertEqual(html("Tom & Jerry"), "<b>To</b>m &amp; <b>Jer</b>ry")
         XCTAssertEqual(html("a &b c"), "<b>a</b> &amp;<b>b</b> <b>c</b>")  // no `;` → not a reference
         XCTAssertEqual(html("a &; b"), "<b>a</b> &amp;; <b>b</b>")
+        // Spec §4: a malformed reference such as `&#;` or `&#x;` is not a
+        // reference — the `&` is escaped and the rest is ordinary text, so the
+        // `x` is a word and gets its fixation.
         XCTAssertEqual(html("a &#; &#x; b"), "<b>a</b> &amp;#; &amp;#<b>x</b>; <b>b</b>")
         XCTAssertEqual(html("&1; &-a; &"), "&amp;1; &amp;-<b>a</b>; &amp;")
         XCTAssertEqual(html("&amp"), "&amp;<b>am</b>p")
@@ -78,10 +81,38 @@ final class HtmlMarkupTests: XCTestCase {
 
     func testTagsWithAttributesAreVerbatim() {
         // Attribute values are not escaped or re-tokenized; a `<` inside one is
-        // fine. (A literal `>` inside an attribute ends the tag, as in every port.)
+        // fine.
         XCTAssertEqual(
             html("<a href=\"x?a=1&b=2\" title=\"<\">go</a>"),
             "<a href=\"x?a=1&b=2\" title=\"<\"><b>g</b>o</a>")
+        // Spec §4: a tag ends at the **first** `>`; quoted attribute values are
+        // not parsed. So `title="<>"` closes the tag after `<>` and the rest
+        // (`">`) is text, exactly as in the reference lexer.
+        XCTAssertEqual(
+            html("<a href=\"x?a=1&b=2\" title=\"<>\">go</a>"),
+            "<a href=\"x?a=1&b=2\" title=\"<>&quot;&gt;<b>g</b>o</a>")
+    }
+
+    func testCommentsAndCDataEndAtTheirOwnTerminator() {
+        // Spec §4: a comment ends at the first `-->` and a CDATA section at
+        // `]]>`; both may contain `>`.
+        XCTAssertEqual(html("<!-- a > b --> c"), "<!-- a > b --> <b>c</b>")
+        XCTAssertEqual(html("<![CDATA[ a > b ]]> c"), "<![CDATA[ a > b ]]> <b>c</b>")
+        XCTAssertEqual(html("<!--code-->x"), "<!--code--><b>x</b>")
+        XCTAssertEqual(html("<!---->x"), "<!----><b>x</b>")
+        // The terminator is searched after the opener, so `<!-->` is not a
+        // complete comment; it degrades to a `<!...>` declaration.
+        XCTAssertEqual(html("<!-->x"), "<!--><b>x</b>")
+        // A closing tag inside a comment does not end a skipped element.
+        XCTAssertEqual(html("<code><!-- </code> --> x</code> y"), "<code><!-- </code> --> x</code> <b>y</b>")
+    }
+
+    func testUnterminatedCommentOrCDataDegradesToADeclaration() {
+        // Without `-->` / `]]>` the block is an ordinary `<!...>` ending at the
+        // first `>`, matching `findTagEnd` in the reference lexer.
+        XCTAssertEqual(html("<!-- a > b"), "<!-- a > <b>b</b>")
+        XCTAssertEqual(html("<![CDATA[ a > b"), "<![CDATA[ a > <b>b</b>")
+        XCTAssertEqual(html("<!-- a b"), "&lt;!-- <b>a</b> <b>b</b>")
     }
 
     // MARK: - skipTags
@@ -128,9 +159,9 @@ final class HtmlMarkupTests: XCTestCase {
     }
 
     func testSaccadeCountingContinuesAcrossSkippedElements() {
-        // Words inside skipped elements are not tokenized, so they do not
-        // consume a saccade index (same as the TypeScript reference): the
-        // counter goes one=0, three=1, four=2.
+        // Spec §4: "Text inside `skipTags` is never tokenised and consumes
+        // nothing." `two` takes no saccade index, so the counter goes one=0,
+        // three=1, four=2 and `four` is the second emphasised word.
         XCTAssertEqual(
             SmoothReading.html(
                 "one <code>two</code> three four", options: HtmlOptions(options: SmoothOptions(saccade: 2))),
@@ -173,7 +204,9 @@ final class HtmlMarkupTests: XCTestCase {
     func testWordsWithoutAFixationAreNeverWrappedInRestTag() {
         let options = HtmlOptions(options: SmoothOptions(fixation: 2, saccade: 2), restTag: "i", restClassName: "r")
         // `a` gets no fixation at strength 2; `2024` is a number; `two`/`four`
-        // are skipped by the saccade. All of them are plain text.
+        // are skipped by the saccade. All of them are plain text. `one` (n=3)
+        // at strength 2 uses the spec §2 integer formula
+        // `floor((3*35+50)/100) = 1`, so only `o` is emphasised.
         XCTAssertEqual(
             SmoothReading.html("a 2024 one two three four", options: options),
             "a 2024 <b>o</b><i class=\"r\">ne</i> two <b>th</b><i class=\"r\">ree</i> four")

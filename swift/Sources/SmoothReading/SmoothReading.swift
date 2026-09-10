@@ -9,7 +9,9 @@ public enum SmoothReading {
 
     // MARK: - Fixation length (spec §2)
 
-    private static let ratios: [Double] = [0.20, 0.35, 0.50, 0.65, 0.80]
+    /// The §2 ratio table (0.20 … 0.80) as integer percentages, so the
+    /// rounding below never depends on floating-point representation.
+    private static let percents = [20, 35, 50, 65, 80]
 
     /// Number of grapheme clusters to emphasise for `word`.
     ///
@@ -29,14 +31,16 @@ public enum SmoothReading {
         if graphemes < options.minWordLength { return 0 }
         // A single character is emphasised only at strength >= 3.
         if graphemes == 1 { return options.clampedFixation >= 3 ? 1 : 0 }
-        let ratio = ratios[options.clampedFixation - 1]
-        let rounded = roundHalfUp(Double(graphemes) * ratio)
-        return min(max(rounded, 1), graphemes)
+        let percent = percents[options.clampedFixation - 1]
+        return min(max(roundHalfUp(graphemes: graphemes, percent: percent), 1), graphemes)
     }
 
-    /// `floor(x + 0.5)` — never banker's rounding, so every port agrees.
-    static func roundHalfUp(_ value: Double) -> Int {
-        Int((value + 0.5).rounded(.down))
+    /// Spec §2 `round_half_up(n * ratio)` = `floor(n * ratio + 0.5)`, computed
+    /// as `floor((n * percent + 50) / 100)` in integer arithmetic. Never
+    /// banker's rounding, and no floating-point drift (`3 * 0.35` is
+    /// `1.0499…` as a `Double`), so every port agrees.
+    static func roundHalfUp(graphemes: Int, percent: Int) -> Int {
+        (graphemes * percent + 50) / 100
     }
 
     static func isAllDigits(_ word: String) -> Bool {

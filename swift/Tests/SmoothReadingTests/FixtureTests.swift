@@ -42,6 +42,21 @@ final class FixtureTests: XCTestCase {
         try run(suite: "common")
     }
 
+    /// Every `fixtures/common/*.json` file present on disk is run — the list is
+    /// globbed, never hard-coded — so a fixture file added to the repository
+    /// can never be silently skipped by this port.
+    func testEveryCommonFixtureFileIsRun() throws {
+        let directory = Self.fixturesRoot.appendingPathComponent("common")
+        let onDisk = try FileManager.default.contentsOfDirectory(atPath: directory.path)
+            .filter { $0.hasSuffix(".json") }
+        XCTAssertFalse(onDisk.isEmpty, "fixtures/common contains no .json files")
+        let ran = try run(suite: "common")
+        for file in onDisk {
+            XCTAssertGreaterThan(ran[file] ?? 0, 0, "fixtures/common/\(file) was not run")
+        }
+        XCTAssertEqual(Set(ran.keys), Set(onDisk))
+    }
+
     /// The `common` fixtures must also pass through the locale-aware
     /// (`CFStringTokenizer`) path, which is only used when a locale is set.
     func testCommonFixturesThroughTheLocaleAwareTokenizer() throws {
@@ -72,9 +87,13 @@ final class FixtureTests: XCTestCase {
         }
     }
 
-    private func run(suite: String, forcingLocale: Locale? = nil) throws {
+    /// Runs every case of every file in `suite`; returns the case count per file.
+    @discardableResult
+    private func run(suite: String, forcingLocale: Locale? = nil) throws -> [String: Int] {
         var count = 0
+        var perFile: [String: Int] = [:]
         for (file, cases) in try Self.cases(in: suite) {
+            perFile[file, default: 0] += cases.count
             for fixture in cases {
                 var options = SmoothOptions()
                 var htmlOptions = HtmlOptions()
@@ -99,5 +118,6 @@ final class FixtureTests: XCTestCase {
             }
         }
         XCTAssertGreaterThan(count, 0, "fixtures/\(suite) ran no cases")
+        return perFile
     }
 }
