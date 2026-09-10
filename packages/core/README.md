@@ -131,8 +131,8 @@ Shared by `tokenize`, `toHtml`, `applyToElement` and `createTransformStream`:
 
 | Option | Type | Default | Meaning |
 | --- | --- | --- | --- |
-| `fixation` | `1 \| 2 \| 3 \| 4 \| 5` | `3` | Fixation strength. Ratios `0.20 / 0.35 / 0.50 / 0.65 / 0.80` of the word, rounded half up, clamped to `1…n`. |
-| `saccade` | `number` | `1` | Emphasise every *n*-th word. Every word token consumes an index, including numbers and words that are too short to be emphasised. |
+| `fixation` | `1 \| 2 \| 3 \| 4 \| 5` | `3` | Fixation strength. Ratios `0.20 / 0.35 / 0.50 / 0.65 / 0.80` of the word, rounded half up, clamped to `1…n`. A value outside `1…5` is clamped into range, never rejected. |
+| `saccade` | `number` | `1` | Emphasise every *n*-th word. Every word token consumes an index, including numbers and words that are too short to be emphasised. Values below `1` are clamped to `1`. |
 | `minWordLength` | `number` | `1` | Words with fewer grapheme clusters get no fixation. |
 | `emphasizeNumbers` | `boolean` | `false` | Emphasise words made entirely of decimal digits. |
 | `locale` | `string` | `undefined` | BCP-47 locale handed to `Intl.Segmenter`. An invalid locale falls back to the runtime default. |
@@ -214,7 +214,7 @@ toHtml('สวัสดีครับ', { locale: 'th' });   // '<b>สวั</
 ```
 
 Without `Intl.Segmenter` the library falls back to the regular expression the
-spec prescribes, `[\p{L}\p{N}\p{M}]+(?:['’][\p{L}\p{N}\p{M}]+)*`, and clusters
+spec prescribes, `[\p{L}\p{N}][\p{L}\p{N}\p{M}]*(?:['’][\p{L}\p{N}\p{M}]+)*`, and clusters
 graphemes as "base plus combining marks" (ZWJ sequences and CR LF included).
 The fallback agrees with `Intl.Segmenter` for every fixture in
 `fixtures/common`, but a run of CJK text becomes a single long "word". The check happens on every call, so a polyfill loaded later is

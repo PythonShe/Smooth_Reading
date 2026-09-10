@@ -62,7 +62,7 @@ Existing open-source implementations are either single-purpose string transforme
 
 Controlled studies (Readwise 2022, Snell 2024, Možina et al. 2025) found **no reading-speed benefit** from this technique for the general population, and no controlled study has demonstrated a benefit for ADHD or dyslexic readers. Many people nevertheless report that they prefer reading this way. Treat it as a reading *preference* you can offer users, not a speed-reading feature. Sources:
 
-- Readwise reader study, 2022, about 1,900 participants: [blog.readwise.io](https://blog.readwise.io/bionic-reading-results/).
+- Readwise reader study, 2022, about 1,900 participants: [blog.readwise.io](https://blog.readwise.io/).
 - Snell, *Acta Psychologica* (2024): [sciencedirect.com](https://www.sciencedirect.com/science/article/pii/S0001691824001811).
 - Možina, Kovačević & Blaznik, *SAGE Open* (2025), [doi:10.1177/21582440251376158](https://journals.sagepub.com/doi/10.1177/21582440251376158).
 - *Attention, Perception & Psychophysics* (2025), [doi:10.3758/s13414-025-03067-w](https://link.springer.com/article/10.3758/s13414-025-03067-w).
@@ -71,7 +71,7 @@ Controlled studies (Readwise 2022, Snell 2024, Možina et al. 2025) found **no r
 
 - **One documented algorithm**, shared JSON fixtures, identical output across languages.
 - **Unicode first**: `Intl.Segmenter` word breaking for CJK and Thai, grapheme-cluster counting, works with any script.
-- **Safe by default**: skips `code`, `pre`, `kbd`, `script`, `style` and form fields; never uses `innerHTML` in framework adapters; escapes emitted text.
+- **Safe by default**: skips `code`, `pre`, `script`, `style`, `kbd`, `samp` and `textarea` by default; never uses `innerHTML` in framework adapters; escapes emitted text.
 - **Presentation is CSS**: the transform emits neutral markup; weight, colour and opacity live in a stylesheet you control.
 - **No runtime dependencies, no network, no telemetry.**
 
@@ -139,14 +139,23 @@ part of the fixture suite, and every port has a test that the token texts
 concatenate back to the input and that the output stripped of emphasis tags is
 the escaped input.
 
+## Contributing
+
+External pull requests are not accepted for now; bug reports and fixture cases via issues are welcome, and forks are encouraged. See [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Development
 
 ```bash
-pnpm install
-pnpm build
-pnpm test
-cd python && python -m pip install -e ".[dev]" && pytest
+pnpm install && pnpm build && pnpm test
+cd swift && swift test
+cd android && ./gradlew test
+cd python && python -m pip install -e ".[dev]" && pytest && mypy --strict smooth_reading
 ```
+
+Contributions: not accepting external pull requests yet; see [CONTRIBUTING.md](CONTRIBUTING.md).
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the rules that keep the four ports
+in lockstep and [CHANGELOG.md](CHANGELOG.md) for release notes.
 
 ## License
 

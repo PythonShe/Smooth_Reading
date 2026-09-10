@@ -23,20 +23,22 @@ at this repository, or in a `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/<owner>/smooth-reading.git", from: "0.1.0")
+    .package(url: "https://github.com/PythonShe/Smooth_Reading.git", from: "0.1.0")
 ],
 targets: [
     .target(name: "MyApp", dependencies: [
-        .product(name: "SmoothReading", package: "smooth-reading")
+        .product(name: "SmoothReading", package: "Smooth_Reading")
     ])
 ]
 ```
 
-The package manifest lives in the `swift/` directory of the monorepo and
-releases are tagged `vX.Y.Z`. Because SPM resolves a package from the root of a
-repository, distribution is done from a repository whose root is this directory
-(a published mirror of `swift/`); to try it locally, add it as a path
-dependency: `.package(path: "../smooth_reading/swift")`.
+The package lives in the `swift/` directory of the monorepo and releases are
+tagged `vX.Y.Z`. Because SwiftPM only reads a `Package.swift` at the root of a
+repository, the repository root carries a manifest that declares the same
+`SmoothReading` library with its sources under `swift/`, so the `.package(url:)`
+above resolves directly. `swift/Package.swift` is the same package for working
+inside this directory; to try it locally from another project, add it as a path
+dependency: `.package(path: "../smooth_reading")` (or `…/smooth_reading/swift`).
 
 ## UIKit
 

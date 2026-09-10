@@ -32,10 +32,14 @@ class Options:
     fixation_length: Callable[[str, int, Options], int] | None = None
 
     def __post_init__(self) -> None:
-        if not _is_int(self.fixation) or self.fixation not in _RATIOS:
+        # Wrong types are rejected; out-of-range values are clamped into range
+        # (spec section 4), matching every other port.
+        if not _is_int(self.fixation):
             raise ValueError(f"fixation must be an integer from 1 to 5, got {self.fixation!r}")
-        if not _is_int(self.saccade) or self.saccade < 1:
+        if not _is_int(self.saccade):
             raise ValueError(f"saccade must be an integer >= 1, got {self.saccade!r}")
+        object.__setattr__(self, "fixation", min(max(self.fixation, 1), 5))
+        object.__setattr__(self, "saccade", max(self.saccade, 1))
         if not _is_int(self.min_word_length) or self.min_word_length < 0:
             raise ValueError(
                 f"min_word_length must be an integer >= 0, got {self.min_word_length!r}"

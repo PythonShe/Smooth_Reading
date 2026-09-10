@@ -27,13 +27,16 @@ Usage: `<SmoothText text="Smooth reading works." :fixation="3" tag="p" />`
 Directive for existing DOM (client only):
 
 ```ts
-import { applyToElement } from "@smooth-reading/core";
+import { applyToElement, type SmoothOptions } from "@smooth-reading/core";
 import type { Directive } from "vue";
 
-let restore: (() => void) | undefined;
+// One restore function per element, so several `v-smooth` elements never
+// clobber each other's undo.
+const restores = new WeakMap<HTMLElement, () => void>();
+
 export const vSmooth: Directive<HTMLElement, SmoothOptions | undefined> = {
-  mounted(el, { value }) { restore = applyToElement(el, value); },
-  updated(el, { value }) { restore?.(); restore = applyToElement(el, value); },
-  unmounted() { restore?.(); },
+  mounted(el, { value }) { restores.set(el, applyToElement(el, value)); },
+  updated(el, { value }) { restores.get(el)?.(); restores.set(el, applyToElement(el, value)); },
+  unmounted(el) { restores.get(el)?.(); restores.delete(el); },
 };
 ```

@@ -17,6 +17,19 @@ const RATIO_PERCENT: Readonly<Record<Fixation, number>> = {
 const ALL_DIGITS = /^\p{Nd}+$/u;
 
 /**
+ * Clamp a requested fixation strength into `1…5` (SPEC §4): out-of-range
+ * values are never rejected or silently replaced by the default. Non-finite
+ * values fall back to `3`; non-integers are truncated first.
+ *
+ * @internal
+ */
+export function clampFixation(value: number | undefined): Fixation {
+  if (value === undefined || !Number.isFinite(value)) return 3;
+  const clamped = Math.min(Math.max(Math.trunc(value), 1), 5);
+  return clamped as Fixation;
+}
+
+/**
  * The built-in fixation-length algorithm (SPEC §2): how many leading grapheme
  * clusters of `word` to emphasise, `0` meaning none.
  *
@@ -41,9 +54,11 @@ export function fixationLength(
   if (n <= 0) return 0;
   if (!opts.emphasizeNumbers && ALL_DIGITS.test(word)) return 0;
   if (n < opts.minWordLength) return 0;
-  if (n === 1) return opts.fixation >= 3 ? 1 : 0;
+  if (n === 1) return clampFixation(opts.fixation) >= 3 ? 1 : 0;
 
-  const percent = RATIO_PERCENT[opts.fixation] ?? RATIO_PERCENT[3];
+  // A hand-built `opts` may carry an out-of-range strength; clamp, never
+  // fall back to the default (SPEC §4).
+  const percent = RATIO_PERCENT[clampFixation(opts.fixation)];
   const raw = Math.floor((n * percent + 50) / 100);
   return Math.min(Math.max(raw, 1), n);
 }

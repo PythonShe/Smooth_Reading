@@ -1,7 +1,7 @@
 """Word/separator scanner: the regex fallback tokenizer of docs/SPEC.md section 3.
 
 Python's :mod:`re` has no ``\\p{...}`` property escapes (and ``\\w`` matches
-``_``), so the spec regex ``[\\p{L}\\p{N}\\p{M}]+(?:['’][\\p{L}\\p{N}\\p{M}]+)*``
+``_``), so the spec regex ``[\\p{L}\\p{N}][\\p{L}\\p{N}\\p{M}]*(?:['’][\\p{L}\\p{N}\\p{M}]+)*``
 is implemented as a hand-written scanner over :func:`unicodedata.category`.
 It yields exactly the tokens the regex would, plus the spec's extra rule that a
 run of CJK characters (Han, Hiragana, Katakana, Hangul) is a word of its own.

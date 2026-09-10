@@ -9,6 +9,9 @@ __pycache__/
 .venv/
 .pytest_cache/
 .build/
+.idea/
+.vscode/
+*.xcworkspace
 
 # Internal notes (research on competitors, legal analysis, planning). Not for the public repo.
 docs/internal/

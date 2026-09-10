@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { defaults, fixationLength, tokenize } from '../src/index.js';
-import type { Token, WordToken } from '../src/index.js';
+import type { Fixation, Token, WordToken } from '../src/index.js';
 
 const words = (tokens: Token[]): WordToken[] =>
   tokens.filter((t): t is WordToken => t.type === 'word');
@@ -168,5 +168,27 @@ describe('fixationLength', () => {
 
   it('returns 0 for an empty word', () => {
     expect(fixationLength('', 0, opts())).toBe(0);
+  });
+});
+
+describe('out-of-range options are clamped (SPEC §4)', () => {
+  const fix = (n: number) => ({ fixation: n as unknown as Fixation });
+
+  it('clamps fixation above 5 down to 5 and below 1 up to 1', () => {
+    expect(tokenize('reading', fix(9))).toEqual(tokenize('reading', { fixation: 5 }));
+    expect(tokenize('reading', fix(0))).toEqual(tokenize('reading', { fixation: 1 }));
+    expect(tokenize('reading', fix(-3))).toEqual(tokenize('reading', { fixation: 1 }));
+  });
+
+  it('never silently falls back to the default strength', () => {
+    expect(fixationLength('reading', 7, { ...defaults, ...fix(9) })).toBe(6);
+    expect(fixationLength('reading', 7, { ...defaults, ...fix(0) })).toBe(1);
+    expect(fixationLength('a', 1, { ...defaults, ...fix(0) })).toBe(0);
+    expect(fixationLength('a', 1, { ...defaults, ...fix(9) })).toBe(1);
+  });
+
+  it('clamps saccade below 1 up to 1', () => {
+    expect(tokenize('one two three', { saccade: 0 })).toEqual(tokenize('one two three', { saccade: 1 }));
+    expect(tokenize('one two three', { saccade: -2 })).toEqual(tokenize('one two three', { saccade: 1 }));
   });
 });

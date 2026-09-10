@@ -1,6 +1,6 @@
 # Recipes
 
-Framework wrappers are intentionally not published as packages. Each recipe below is a complete, copy-paste component built on `@smooth-reading/core`'s `tokenize()`. They render real elements (no `innerHTML`), so they are safe with untrusted text and work with server-side rendering.
+Framework wrappers are intentionally not published as packages. Each recipe below is a complete, copy-paste component built on `@smooth-reading/core`'s `tokenize()`. They render real elements (no `innerHTML`, except where you already own fetched HTML and transform it with `toHtml` in the data layer), so they are safe with untrusted text and work with server-side rendering.
 
 | Recipe | File |
 | --- | --- |

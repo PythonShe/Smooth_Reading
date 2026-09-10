@@ -61,7 +61,7 @@ An **override function** may replace the algorithm entirely (all special cases i
 ## 3. Tokenizer
 
 * Prefer `Intl.Segmenter(locale, { granularity: "word" })` when available; it yields dictionary-based word breaks for Chinese, Japanese and Thai and correct handling for every Unicode script. Segments with `isWordLike === true` are words; the rest are separators.
-* Fallback (no `Intl.Segmenter`, and all non-JS ports) — a Unicode-aware regular expression:
+* Fallback (no `Intl.Segmenter`, and the Python port) — a Unicode-aware regular expression:
   `[\p{L}\p{N}][\p{L}\p{N}\p{M}]*(?:['’][\p{L}\p{N}\p{M}]+)*`
   This mirrors ICU's default word-break rules for Latin-like text (apostrophe joins, hyphen splits), so `Intl.Segmenter` and the regex produce identical tokens for every `common` fixture. A word never starts with a combining mark: a mark that follows a separator — the variation selector of an emoji such as `❤️` — belongs to that separator, as in ICU (UAX #29 WB4), so `I ❤️ you` emits `❤️` untouched. `common` fixtures avoid inputs where ICU and the regex are known to differ (decimal numbers such as `3.14`, underscores, emoji).
   Runs of CJK ideographs (`\p{Script=Han}`, Hiragana, Katakana, Hangul) and Thai are treated as one word per **run**, and the uniform §2 rules apply to that run. Ports document which tokenizer they use; fixtures are split into `fixtures/common/*` (must match in every port) and `fixtures/segmenter/*` (only required when `Intl.Segmenter` is used).
@@ -107,6 +107,7 @@ export const defaults: ResolvedSmoothOptions;
 Rules:
 
 * `toHtml` escapes `<`, `>`, `&`, `"` in **text** it emits. Existing tags are passed through verbatim when `ignoreHtmlTags` is `true`.
+* Out-of-range values are **clamped** into range in every port, never rejected silently or thrown: a `fixation` outside `1–5` becomes `1` or `5`, and a `saccade` below `1` becomes `1` (non-integers are truncated first); only a value of the wrong type may raise in ports with runtime type checks.
 * `saccade` counts **word** tokens only; the first word of the input always gets a fixation (index 0 mod saccade).
 * Every word token consumes a saccade index, including numbers, words below `minWordLength` and single letters below strength 3. Text inside `skipTags` is never tokenised and consumes nothing.
 * When `ignoreHtmlTags` is `true`, the emphasis `tag` and `restTag` themselves are implicitly added to `skipTags`, so already-emphasised markup is never nested: `<b>Smooth</b> reading` → `<b>Smooth</b> <b>read</b>ing`. Full idempotence of `toHtml(toHtml(x))` is **not** guaranteed, because the un-emphasised remainder of a word is plain text and gets emphasised on the second pass. `applyToElement` is idempotent: it marks the wrappers it creates and skips them on re-application.
@@ -135,7 +136,7 @@ The project ships one package per platform runtime. Framework adapters (React, V
 | `io.smoothreading:smooth-reading` (Maven) | Android (minSdk 26), JVM | `tokenize`, `annotatedString()` for Compose, `spanned()` for `TextView`, `toHtml()` |
 | `smooth-reading` (PyPI) | Python 3.10+ | `tokenize`, `to_html`, CLI |
 
-Every port passes `fixtures/common/*`. Ports whose runtime has a Unicode word-break engine (ICU on Apple platforms via `NSLinguisticTagger`/`String.enumerateSubstrings(.byWords)`, `android.icu.text.BreakIterator` on Android, `Intl.Segmenter` in JS) should use it and also pass `fixtures/segmenter/*`; Python uses the regex fallback only.
+Every port passes `fixtures/common/*`. Ports whose runtime has a Unicode word-break engine (ICU on Apple platforms via `String.enumerateSubstrings(.byWords)` and `CFStringTokenizer`, `android.icu.text.BreakIterator` on Android, `Intl.Segmenter` in JS) should use it and also pass `fixtures/segmenter/*`; Python uses the regex fallback only.
 
 ## 7. Fixtures
 

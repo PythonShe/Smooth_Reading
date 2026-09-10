@@ -83,6 +83,8 @@ def test_invalid_fixation_is_rejected() -> None:
         main(["--fixation", "9"])
 
 
-def test_invalid_saccade_is_rejected() -> None:
-    with pytest.raises(SystemExit):
-        main(["--saccade", "0"])
+def test_out_of_range_saccade_is_clamped(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Spec section 4: saccade < 1 is clamped to 1, so every word is emphasised.
+    assert run(["--saccade", "0"], "one two", capsys, monkeypatch) == "<b>on</b>e <b>tw</b>o"

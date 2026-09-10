@@ -1,3 +1,4 @@
+import { clampFixation } from './fixation.js';
 import type { MarkupOptions, ResolvedSmoothOptions, SmoothOptions } from './types.js';
 
 /**
@@ -44,7 +45,8 @@ const DEFAULT_TAG = 'b';
 export function resolveSmoothOptions(options?: SmoothOptions): ResolvedSmoothOptions {
   if (!options) return defaults;
   return {
-    fixation: options.fixation ?? defaults.fixation,
+    // SPEC §4: out-of-range values are clamped into range, never rejected.
+    fixation: clampFixation(options.fixation),
     saccade: normalizeSaccade(options.saccade),
     minWordLength: options.minWordLength ?? defaults.minWordLength,
     emphasizeNumbers: options.emphasizeNumbers ?? defaults.emphasizeNumbers,

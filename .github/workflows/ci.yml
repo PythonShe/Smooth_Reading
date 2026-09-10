@@ -65,4 +65,4 @@ jobs:
           distribution: temurin
           java-version: 21
       - uses: gradle/actions/setup-gradle@v6
-      - run: ./gradlew :smooth-reading-core:test :smooth-reading:assembleRelease --console=plain
+      - run: ./gradlew test :smooth-reading:assembleRelease --console=plain

@@ -131,17 +131,21 @@ smooth-reading --tag span --class sr-fixation article.txt
 | `--no-ignore-html-tags` | off | Treat the input as plain text and escape markup |
 | `--markdown` | off | Emit `**prefix**rest` instead of HTML |
 
+`rest_tag`, `rest_class_name`, `skip_tags` and `locale` are library-only options
+with no CLI flag; use `to_html` from Python for those.
+
 ## Options
 
 `tokenize`, `to_html` and `to_markdown` take the algorithm options as keyword
 arguments, as an `Options` instance (`to_html(text, Options(fixation=4))`), or
-both (keywords override the instance). Invalid values raise `ValueError`;
-unknown names raise `TypeError`. `DEFAULTS` is the spec default `Options()`.
+both (keywords override the instance). Out-of-range `fixation` (not 1–5) and
+`saccade` (< 1) are clamped into range, as in every port; values of the wrong
+type raise `ValueError`; unknown names raise `TypeError`. `DEFAULTS` is the spec default `Options()`.
 
 | Option | Type | Default | Meaning |
 | --- | --- | --- | --- |
-| `fixation` | `1..5` | `3` | Ratio of each word emphasised: 0.20, 0.35, 0.50, 0.65, 0.80 |
-| `saccade` | `int >= 1` | `1` | Emphasise every Nth word; the first word always counts as index 0 |
+| `fixation` | `1..5` | `3` | Ratio of each word emphasised: 0.20, 0.35, 0.50, 0.65, 0.80; out-of-range values are clamped |
+| `saccade` | `int >= 1` | `1` | Emphasise every Nth word; the first word always counts as index 0; values below 1 are clamped to 1 |
 | `min_word_length` | `int >= 0` | `1` | Words shorter than this get no fixation |
 | `emphasize_numbers` | `bool` | `False` | Emphasise words made only of digits |
 | `locale` | `str \| None` | `None` | BCP-47 tag, accepted for cross-port parity (unused by the regex tokenizer) |

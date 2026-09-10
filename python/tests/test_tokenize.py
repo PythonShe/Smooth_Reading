@@ -131,6 +131,12 @@ def test_unknown_option_raises_type_error() -> None:
         tokenize("hi", nonsense=1)
 
 
-def test_invalid_keyword_value_raises_value_error() -> None:
+def test_wrong_type_keyword_value_raises_value_error() -> None:
     with pytest.raises(ValueError, match="saccade"):
-        tokenize("hi", saccade=0)
+        tokenize("hi", saccade="0")
+
+
+def test_out_of_range_keyword_value_is_clamped() -> None:
+    # saccade 0 clamps to 1: every word is emphasised, exactly as with saccade=1.
+    assert tokenize("hi there", saccade=0) == tokenize("hi there", saccade=1)
+    assert tokenize("hi there", fixation=7) == tokenize("hi there", fixation=5)

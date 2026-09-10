@@ -13,12 +13,12 @@ rehype plugin (Astro, Next MDX, Docusaurus):
 
 ```ts
 import { visit } from "unist-util-visit";
-import { tokenize } from "@smooth-reading/core";
+import { tokenize, defaultSkipTags } from "@smooth-reading/core";
 
 export function rehypeSmoothReading(options = {}) {
   return (tree) => {
     visit(tree, "text", (node, index, parent) => {
-      if (!parent || ["code", "pre", "script", "style"].includes(parent.tagName)) return;
+      if (!parent || defaultSkipTags.includes(parent.tagName)) return;
       const children = tokenize(node.value, options).map((t) =>
         t.type === "word"
           ? { type: "element", tagName: "span", properties: {}, children: [

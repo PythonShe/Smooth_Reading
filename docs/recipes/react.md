@@ -6,7 +6,7 @@ Works in React 18/19, Next.js App Router (server and client components), Remix a
 import { tokenize, type SmoothOptions } from "@smooth-reading/core";
 import "@smooth-reading/core/styles.css";
 
-type Props = SmoothOptions & { children: string; as?: keyof JSX.IntrinsicElements };
+type Props = SmoothOptions & { children: string; as?: keyof React.JSX.IntrinsicElements };
 
 export function SmoothText({ children, as: Tag = "span", ...options }: Props) {
   const tokens = tokenize(children, options);
@@ -98,7 +98,7 @@ import { useCallback, useRef } from "react";
 import { applyToElement } from "@smooth-reading/core";
 
 export function SmoothWidget({ children }: { children: React.ReactNode }) {
-  const restore = useRef<() => void>();
+  const restore = useRef<(() => void) | undefined>(undefined);
   const attach = useCallback((node: HTMLDivElement | null) => {
     restore.current?.();
     restore.current = node ? applyToElement(node, { fixation: 3 }) : undefined;

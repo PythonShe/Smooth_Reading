@@ -38,9 +38,9 @@ classifiers = [
 dependencies = []
 
 [project.urls]
-Homepage = "https://github.com/PythonShe/smooth_reading"
-Source = "https://github.com/PythonShe/smooth_reading"
-Issues = "https://github.com/PythonShe/smooth_reading/issues"
+Homepage = "https://github.com/PythonShe/Smooth_Reading"
+Source = "https://github.com/PythonShe/Smooth_Reading"
+Issues = "https://github.com/PythonShe/Smooth_Reading/issues"
 
 [project.scripts]
 smooth-reading = "smooth_reading.cli:main"

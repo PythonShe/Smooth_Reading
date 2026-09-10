@@ -130,11 +130,8 @@ def test_override_receives_the_resolved_options() -> None:
 @pytest.mark.parametrize(
     ("field", "value", "message"),
     [
-        ("fixation", 0, "fixation must be an integer from 1 to 5, got 0"),
-        ("fixation", 6, "fixation must be an integer from 1 to 5, got 6"),
         ("fixation", 3.0, "fixation must be an integer from 1 to 5, got 3.0"),
         ("fixation", True, "fixation must be an integer from 1 to 5, got True"),
-        ("saccade", 0, "saccade must be an integer >= 1, got 0"),
         ("saccade", "2", "saccade must be an integer >= 1, got '2'"),
         ("min_word_length", -1, "min_word_length must be an integer >= 0, got -1"),
         ("fixation_length", 3, "fixation_length must be callable or None, got 3"),
@@ -145,6 +142,33 @@ def test_invalid_options_are_rejected_with_a_clear_message(
 ) -> None:
     with pytest.raises(ValueError, match=message):
         Options(**{field: value})
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "expected"),
+    [
+        ("fixation", 0, 1),
+        ("fixation", -3, 1),
+        ("fixation", 6, 5),
+        ("fixation", 99, 5),
+        ("saccade", 0, 1),
+        ("saccade", -1, 1),
+    ],
+)
+def test_out_of_range_options_are_clamped_not_rejected(
+    field: str, value: int, expected: int
+) -> None:
+    # Spec section 4: every port clamps, none throws or silently substitutes the default.
+    assert getattr(Options(**{field: value}), field) == expected
+
+
+def test_clamped_fixation_drives_the_algorithm() -> None:
+    assert fixation_length("reading", 7, Options(fixation=9)) == fixation_length(
+        "reading", 7, Options(fixation=5)
+    )
+    assert fixation_length("reading", 7, Options(fixation=0)) == fixation_length(
+        "reading", 7, Options(fixation=1)
+    )
 
 
 def test_defaults_match_the_spec() -> None:
