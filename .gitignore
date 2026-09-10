@@ -1,0 +1,14 @@
+node_modules/
+dist/
+coverage/
+.turbo/
+*.log
+.DS_Store
+__pycache__/
+*.egg-info/
+.venv/
+.pytest_cache/
+.build/
+
+# Internal notes (research on competitors, legal analysis, planning). Not for the public repo.
+docs/internal/
