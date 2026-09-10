@@ -98,3 +98,9 @@ package metadata.
   are never committed.
 - Versions are bumped together across all ports and releases are tagged
   `vX.Y.Z`. Push the tag, then run `gh workflow run release.yml -f tag=vX.Y.Z`.
+  The workflow publishes `@smooth-reading/core` to npm, `smooth-reading` to
+  PyPI (trusted publishing), `io.github.pythonshe:smooth-reading` and
+  `smooth-reading-core` to Maven Central,
+  and creates the GitHub release that SwiftPM resolves. Prerelease tags
+  (`-rc.N`, `-beta.N`) land under npm's `next` dist-tag and as PyPI
+  pre-releases (`0.1.0rc1` spelling).

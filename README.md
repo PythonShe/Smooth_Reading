@@ -1,5 +1,16 @@
 # Smooth Reading
 
+[![npm](https://img.shields.io/npm/v/@smooth-reading/core/next?label=npm&logo=npm)](https://www.npmjs.com/package/@smooth-reading/core)
+[![npm downloads](https://img.shields.io/npm/dm/@smooth-reading/core?label=npm%20downloads&logo=npm)](https://www.npmjs.com/package/@smooth-reading/core)
+[![PyPI](https://img.shields.io/pypi/v/smooth-reading?label=PyPI&logo=pypi&logoColor=white)](https://pypi.org/project/smooth-reading/)
+[![PyPI downloads](https://img.shields.io/pypi/dm/smooth-reading?label=PyPI%20downloads&logo=pypi&logoColor=white)](https://pypi.org/project/smooth-reading/)
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.pythonshe/smooth-reading?label=Maven%20Central&logo=apachemaven)](https://central.sonatype.com/artifact/io.github.pythonshe/smooth-reading)
+[![SwiftPM](https://img.shields.io/github/v/release/PythonShe/Smooth_Reading?include_prereleases&label=SwiftPM&logo=swift&logoColor=white)](https://github.com/PythonShe/Smooth_Reading/releases)
+[![Swift versions](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2FPythonShe%2FSmooth_Reading%2Fbadge%3Ftype%3Dswift-versions)](https://swiftpackageindex.com/PythonShe/Smooth_Reading)
+[![Apple platforms](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2FPythonShe%2FSmooth_Reading%2Fbadge%3Ftype%3Dplatforms)](https://swiftpackageindex.com/PythonShe/Smooth_Reading)
+[![GitHub stars](https://img.shields.io/github/stars/PythonShe/Smooth_Reading?style=flat&logo=github)](https://github.com/PythonShe/Smooth_Reading/stargazers)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+
 Open-source, framework-friendly **guided fixation reading**: the leading letters of every word are emphasised so the eye lands on an artificial fixation point and the brain completes the rest of the word.
 
 ```
@@ -62,6 +73,11 @@ export function SmoothText({ children, ...options }) {
 ### Apple (Swift)
 
 ```swift
+// Package.swift
+.package(url: "https://github.com/PythonShe/Smooth_Reading.git", from: "0.1.0-rc.2")
+```
+
+```swift
 import SmoothReading
 
 // UIKit / AppKit convenience
@@ -72,6 +88,11 @@ Text(SmoothReading.attributedString("Smooth reading works.", options: SmoothOpti
 ```
 
 ### Android (Kotlin)
+
+```kotlin
+// build.gradle.kts — resolves from Maven Central
+implementation("io.github.pythonshe:smooth-reading:0.1.0-rc.2")
+```
 
 ```kotlin
 import io.smoothreading.SmoothReading
@@ -192,6 +213,21 @@ The fixation point is always the *logical* start of the word (the first characte
 Emitted markup and attributed strings never insert `dir` attributes, `<bdi>` elements, or artificial bidi control characters. Mixed-direction inputs (`Hello مرحبا world`, RTL sentences with embedded Latin terms and numbers) are tested in every port to ensure lossless roundtripping.
 
 ---
+
+## Releases
+
+All four ports share one version number and one git tag (`vX.Y.Z`); see
+[CHANGELOG.md](CHANGELOG.md) for release notes.
+
+| Port | Where it is published | Current channel |
+| --- | --- | --- |
+| `@smooth-reading/core` | [npm](https://www.npmjs.com/package/@smooth-reading/core) | prerelease under the `next` tag: `pnpm add @smooth-reading/core@next` |
+| `SmoothReading` | [GitHub releases](https://github.com/PythonShe/Smooth_Reading/releases) (SwiftPM resolves git tags directly) and the [Swift Package Index](https://swiftpackageindex.com/PythonShe/Smooth_Reading) | prerelease tag: `from: "0.1.0-rc.2"` |
+| `io.github.pythonshe:smooth-reading` | [Maven Central](https://central.sonatype.com/artifact/io.github.pythonshe/smooth-reading) | prerelease version: `0.1.0-rc.2` |
+| `smooth-reading` | [PyPI](https://pypi.org/project/smooth-reading/) | prerelease: `pip install --pre smooth-reading` |
+
+Prereleases are for integration testing ahead of `0.1.0`; the public API is
+described in [docs/SPEC.md](docs/SPEC.md) and may still change before then.
 
 ## Contributing
 
