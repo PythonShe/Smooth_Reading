@@ -8,5 +8,5 @@ plugins {
 
 allprojects {
     group = "io.github.pythonshe"
-    version = "0.1.0-rc.2"
+    version = "0.2.0"
 }
