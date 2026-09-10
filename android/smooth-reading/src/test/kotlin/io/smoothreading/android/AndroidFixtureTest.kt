@@ -8,9 +8,11 @@ import io.smoothreading.WordSegmenter
 import java.io.File
 import org.json.JSONArray
 import org.json.JSONObject
-import org.junit.Assert.assertEquals
+import org.hamcrest.CoreMatchers.equalTo
 import org.junit.Assume.assumeTrue
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.ErrorCollector
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
@@ -20,11 +22,16 @@ import org.robolectric.annotation.Config
  *
  * `common` runs through the default spec tokenizer, `segmenter` through
  * [IcuWordSegmenter] — the ICU word breaker this artifact ships with. Missing
- * fixture directories are skipped as assumptions, not failures.
+ * fixture directories are skipped as assumptions, not failures. Every case is
+ * checked through an [ErrorCollector], so one run reports every failing case
+ * rather than stopping at the first.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
 class AndroidFixtureTest {
+
+    @get:Rule
+    val errors: ErrorCollector = ErrorCollector()
 
     @Test
     fun common() {
@@ -58,10 +65,10 @@ class AndroidFixtureTest {
                     htmlOptions(case.optJSONObject("options")),
                     segmenter,
                 )
-                assertEquals(
+                errors.checkThat(
                     "${file.name} :: ${case.optString("name", "case $index")}",
-                    case.getString("html"),
                     html,
+                    equalTo(case.getString("html")),
                 )
             }
         }

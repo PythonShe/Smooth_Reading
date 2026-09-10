@@ -20,8 +20,8 @@ public data class RawSegment(val text: String, val isWord: Boolean)
  * Two implementations ship with the project:
  *
  * * [SpecWordSegmenter] — the spec's Unicode regular expression
- *   `[\p{L}\p{N}\p{M}]+(?:['’][\p{L}\p{N}\p{M}]+)*` plus the scriptio-continua
- *   rule. It is the default and the only tokenizer guaranteed to agree with
+ *   `[\p{L}\p{N}][\p{L}\p{N}\p{M}]*(?:['’][\p{L}\p{N}\p{M}]+)*` plus the
+ *   scriptio-continua rule. It is the default and the only tokenizer guaranteed to agree with
  *   the other ports on every `fixtures/common` case.
  * * `io.smoothreading.android.IcuWordSegmenter` (Android artifact) —
  *   `android.icu.text.BreakIterator`, i.e. real UAX #29 word breaking with
@@ -39,10 +39,14 @@ public fun interface WordSegmenter {
 }
 
 /**
- * The tokenizer of SPEC §3's fallback: maximal runs of `\p{L}\p{N}\p{M}`
- * joined by `'` or `’`, with runs of scriptio-continua scripts (Han, Kana,
- * Hangul, Thai) forming words of their own. Hand-written rather than
- * regex-driven so that the CJK rule and the regex share one linear pass.
+ * The tokenizer of SPEC §3's fallback: a letter or digit followed by a maximal
+ * run of `\p{L}\p{N}\p{M}`, joined by `'` or `’`, with runs of
+ * scriptio-continua scripts (Han, Kana, Hangul, Thai) forming words of their
+ * own. A word never *starts* with a combining mark: a mark that follows a
+ * separator — the variation selector of `❤️`, say — stays in the separator,
+ * as ICU's UAX #29 WB4 keeps it with the preceding symbol. Hand-written
+ * rather than regex-driven so that the CJK rule and the regex share one
+ * linear pass.
  */
 public object SpecWordSegmenter : WordSegmenter {
 
@@ -55,7 +59,7 @@ public object SpecWordSegmenter : WordSegmenter {
             val cp = text.codePointAt(i)
             val end = when {
                 isContinuous(cp) -> scanRun(text, i)
-                isWordChar(cp) -> scanWord(text, i)
+                isWordStart(cp) -> scanWord(text, i)
                 else -> {
                     i += Character.charCount(cp)
                     continue
@@ -81,7 +85,10 @@ public object SpecWordSegmenter : WordSegmenter {
         return i
     }
 
-    /** Consume `[\p{L}\p{N}\p{M}]+(?:['’][\p{L}\p{N}\p{M}]+)*` from [from]. */
+    /**
+     * Consume `[\p{L}\p{N}\p{M}]*(?:['’][\p{L}\p{N}\p{M}]+)*` from [from];
+     * the caller has checked that [from] is a letter or digit.
+     */
     private fun scanWord(text: String, from: Int): Int {
         var i = from
         while (i < text.length) {
@@ -104,7 +111,22 @@ public object SpecWordSegmenter : WordSegmenter {
         return i
     }
 
-    /** `\p{L}`, `\p{N}` or `\p{M}`. */
+    /** `\p{L}` or `\p{N}`: what a word may begin with. */
+    private fun isWordStart(cp: Int): Boolean = when (Character.getType(cp).toByte()) {
+        Character.UPPERCASE_LETTER,
+        Character.LOWERCASE_LETTER,
+        Character.TITLECASE_LETTER,
+        Character.MODIFIER_LETTER,
+        Character.OTHER_LETTER,
+        Character.DECIMAL_DIGIT_NUMBER,
+        Character.LETTER_NUMBER,
+        Character.OTHER_NUMBER,
+        -> true
+
+        else -> false
+    }
+
+    /** `\p{L}`, `\p{N}` or `\p{M}`: what may continue a word. */
     private fun isWordChar(cp: Int): Boolean = when (Character.getType(cp).toByte()) {
         Character.UPPERCASE_LETTER,
         Character.LOWERCASE_LETTER,

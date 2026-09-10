@@ -49,7 +49,7 @@ fixtures avoid the disputed inputs and the notes say what to expect.
 | Lao | dictionary | dictionary | dictionary | run rule | ICU | `ພາສາ ລາວ ງ່າຍ` on every engine tested |
 | Khmer | dictionary | dictionary | dictionary | run rule | ICU, engine-dependent clusters | dictionary words agree; consonant + coeng (U+17D2) + consonant is one cluster in ICU 76+/JDK 26 (Unicode 17) but two in Swift 6.3 — fixtures avoid coeng stacks |
 | Burmese | dictionary | dictionary | dictionary | run rule | ICU | spacing vowel signs such as `ာ` (U+102C) are their own cluster per UAX #29, on every engine; the Python approximation attaches them |
-| Devanagari, Bengali, Gujarati, Oriya, Telugu, Malayalam | ICU / regex | ICU | ICU / regex | regex | identical (Unicode ≥ 15.1) | conjuncts link (GB9c): `क्षत्रिय` = `क्ष | त्रि | य`; JDK 21 (Android unit tests) still splits after the virama — see *Known gaps* |
+| Devanagari, Bengali, Gujarati, Oriya, Telugu, Malayalam | ICU / regex | ICU | ICU / regex | regex | identical (Unicode ≥ 15.1) | conjuncts link (GB9c): `क्षत्रिय` = `क्ष | त्रि | य`; the Kotlin port applies GB9c itself, so results do not depend on the JDK's Unicode version |
 | Tamil, Sinhala, other Indic scripts without the linker property | ICU / regex | ICU | ICU / regex | regex | identical | virama/pulli stays with its consonant; no linking (`தமிழ்` = 3 clusters). Kannada's linker was added in Unicode 16 and is engine-dependent; not in the fixtures |
 | Arabic, Persian, Urdu | ICU / regex | ICU | ICU / regex | regex | identical | tashkeel and shadda stay with their letter; Arabic-Indic digits are numbers; Persian ZWNJ (U+200C) keeps a word together only in the ICU ports (`می‌خواهم`), the regex splits at it |
 | Hebrew | ICU / regex | ICU | ICU / regex | regex | identical | niqqud and the shin/sin dots stay with their letter; geresh/gershayim inside words (`צ׳ילה`) are joined by ICU but split by the regex — not in the fixtures |
@@ -131,11 +131,12 @@ fixtures were written (Node 24.18 / ICU 76, Swift 6.3 on macOS 26, JDK 21 and
 ICU does.
 
 - **Indic conjuncts on Unicode < 15.1 engines.** `java.text.BreakIterator` in
-  JDK 21 (the Android unit-test toolchain) splits `क्ष` after the virama, so
-  `क्षत्रिय` counts 5 clusters instead of 3 and the fixation ends in a
-  half-form. On a device, `android.icu` (Android 15+) applies GB9c. The
-  `common/scripts.json` cases `Hindi: conjunct क्षत्रिय is 3 clusters` and
-  `Hindi: उम्र is 2 clusters` fail on JDK 21 for this reason.
+  JDKs before 22 splits `क्ष` after the virama. The Kotlin port and the
+  Python port therefore apply the GB9c linking rule themselves on top of the
+  engine's boundaries, and the TypeScript regex fallback does the same, so
+  `क्षत्रिय` counts 3 clusters everywhere. Only the `Intl.Segmenter` path
+  depends on the runtime's ICU, which is ≥ 15.1 in every current browser
+  and Node release.
 - **Khmer coeng and Myanmar virama.** Unicode 17 extends conjunct linking to
   Khmer, Myanmar, Tai Tham, Balinese and Sundanese. ICU 76 and JDK 26 apply it
   (`ខ្មែរ` = `ខ្មែ | រ`), Swift 6.3 does not (`ខ្ | មែ | រ`), and the SPEC §3

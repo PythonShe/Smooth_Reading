@@ -179,8 +179,10 @@ The JVM default is deliberately **not** `java.text.BreakIterator`: outside
 Android it is the JDK's legacy rule-based word iterator, which keeps
 `well-known` as a single word and splits `don’t` into three, both contradicting
 SPEC §3. Grapheme counting *does* use `BreakIterator.getCharacterInstance()`,
-which is UAX #29 conformant on both runtimes. Any `WordSegmenter` you write
-yourself must return segments that concatenate back to the input.
+plus a small post-pass that composes Hangul jamo and links Indic conjuncts
+(Unicode 15.1 GB9c), so `क्ष` is one cluster even on a JDK whose break
+iterator predates that rule. Any `WordSegmenter` you write yourself must
+return segments that concatenate back to the input.
 
 Pass a segmenter explicitly when you need the other behaviour:
 
