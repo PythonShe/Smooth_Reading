@@ -7,23 +7,16 @@ the algorithm is defined by ``docs/SPEC.md`` in the project repository.
 
 from __future__ import annotations
 
-from .core import Token, fixation_length, round_half_up, tokenize
-from .graphemes import grapheme_count, graphemes
-from .html import SKIP_TAGS, escape, to_html, to_markdown
-from .options import DEFAULTS, FixationLengthFn, Options, coerce_options
+from .core import Token, fixation_length, tokenize
+from .html import SKIP_TAGS, to_html, to_markdown
+from .options import DEFAULTS, Options
 
 __all__ = [
     "DEFAULTS",
-    "FixationLengthFn",
-    "Options",
     "SKIP_TAGS",
+    "Options",
     "Token",
-    "coerce_options",
-    "escape",
     "fixation_length",
-    "grapheme_count",
-    "graphemes",
-    "round_half_up",
     "to_html",
     "to_markdown",
     "tokenize",

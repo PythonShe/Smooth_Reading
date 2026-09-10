@@ -1,149 +1,153 @@
-"""HTML rendering (spec section 4)."""
+"""HTML and Markdown rendering (docs/SPEC.md section 4)."""
 
 from __future__ import annotations
 
+import html
 import re
-from typing import Any, Iterator, Mapping, Optional, Sequence
+from collections.abc import Iterable, Iterator
+from typing import Any
 
-from .core import iter_tokens
-from .options import Options, coerce_options
+from .core import Token, tokenize_from
+from .options import Options, resolve
 
-__all__ = ["SKIP_TAGS", "escape", "to_html", "to_markdown"]
-
-#: Elements whose text content is never touched.
+#: Elements whose text content ``to_html`` never touches (spec section 4).
 SKIP_TAGS: tuple[str, ...] = ("code", "pre", "script", "style", "kbd", "samp", "textarea")
 
-_ENTITY = re.compile(r"&(?:#[0-9]+|#[xX][0-9a-fA-F]+|[A-Za-z][A-Za-z0-9]*);")
-_TAG_NAME = re.compile(r"^</?\s*([A-Za-z][A-Za-z0-9:-]*)")
-_ESCAPES = {"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}
+# Markup that is passed through verbatim when ``ignore_html_tags`` is on: a
+# comment, a CDATA section, a tag (``<`` only starts one when followed by a
+# letter, ``/``, ``!`` or ``?``), or a character reference. Anything else --
+# including an unterminated ``<p`` -- is text and gets escaped.
+_MARKUP = re.compile(
+    r"<!--.*?-->"
+    r"|<!\[CDATA\[.*?\]\]>"
+    r"|</?[A-Za-z][^>]*>"
+    r"|<[!?][^>]*>"
+    r"|&(?:#[0-9]+|#[xX][0-9a-fA-F]+|[A-Za-z][A-Za-z0-9]*);",
+    re.DOTALL,
+)
+_TAG = re.compile(r"<(/?)([A-Za-z][A-Za-z0-9:-]*)[^>]*?(/?)>")
 
 
-def escape(text: str) -> str:
-    """Escape ``&``, ``<``, ``>`` and ``"`` in emitted text."""
-    return "".join(_ESCAPES.get(char, char) for char in text)
+def _escape(text: str) -> str:
+    # The spec escapes exactly ``& < > "`` (not ``'``, so ``don't`` stays readable).
+    return html.escape(text, quote=False).replace('"', "&quot;")
 
 
-def _scan_markup(text: str, index: int) -> int:
-    """Return the end index of the markup construct starting at ``text[index] == '<'``.
+def _split_markup(text: str, skip_tags: Iterable[str]) -> Iterator[tuple[bool, str]]:
+    """Yield ``(is_raw, chunk)`` pairs covering ``text``.
 
-    Returns ``index`` when what follows is not markup (a bare ``<`` in prose).
+    Raw chunks (markup, character references and the content of ``skip_tags``
+    elements) are emitted verbatim; the others are prose to be tokenized.
+    Character references therefore act as word boundaries.
     """
-    rest = text[index:]
-    if rest.startswith("<!--"):
-        end = text.find("-->", index + 4)
-        return len(text) if end == -1 else end + 3
-    if rest.startswith("<![CDATA["):
-        end = text.find("]]>", index + 9)
-        return len(text) if end == -1 else end + 3
-    following = text[index + 1 : index + 2]
-    if not (following.isalpha() or following in "!/?"):
-        return index
-    if following == "/" and not text[index + 2 : index + 3].isalpha():
-        return index
-    end = text.find(">", index + 1)
-    return len(text) if end == -1 else end + 1
+    skipped = {name.lower() for name in skip_tags}
+    skip_name: str | None = None  # the skip element we are inside, if any
+    skip_depth = 0  # nesting of that same element, e.g. <pre><pre>..</pre></pre>
+    cursor = 0
+    for match in _MARKUP.finditer(text):
+        if match.start() > cursor:
+            yield skip_name is not None, text[cursor : match.start()]
+        raw = match.group()
+        yield True, raw
+        cursor = match.end()
+
+        tag = _TAG.match(raw)
+        if tag is None:
+            continue
+        closing, name = tag.group(1) == "/", tag.group(2).lower()
+        if tag.group(3):  # self-closing, e.g. <br/>
+            continue
+        if skip_name is None:
+            if not closing and name in skipped:
+                skip_name, skip_depth = name, 1
+        elif name == skip_name:
+            skip_depth += -1 if closing else 1
+            if skip_depth == 0:
+                skip_name = None
+    if cursor < len(text):
+        yield skip_name is not None, text[cursor:]
 
 
-def _chunks(text: str, skip_tags: Sequence[str]) -> Iterator[tuple[bool, str]]:
-    """Yield ``(is_raw, chunk)`` covering ``text``; raw chunks pass through verbatim."""
-    skip_lower = {tag.lower() for tag in skip_tags}
-    skip_stack: list[str] = []
-    buffer: list[str] = []
-    length = len(text)
-    index = 0
-
-    def flush() -> Iterator[tuple[bool, str]]:
-        if buffer:
-            yield bool(skip_stack), "".join(buffer)
-            buffer.clear()
-
-    while index < length:
-        char = text[index]
-        if char == "<":
-            end = _scan_markup(text, index)
-            if end > index:
-                yield from flush()
-                markup = text[index:end]
-                match = _TAG_NAME.match(markup)
-                if match is not None:
-                    name = match.group(1).lower()
-                    if markup.startswith("</"):
-                        if name in skip_stack:
-                            while skip_stack and skip_stack.pop() != name:
-                                pass
-                    elif name in skip_lower and not markup.rstrip().endswith("/>"):
-                        skip_stack.append(name)
-                yield True, markup
-                index = end
-                continue
-        elif char == "&" and not skip_stack:
-            match = _ENTITY.match(text, index)
-            if match is not None:
-                yield from flush()
-                yield True, match.group(0)
-                index = match.end()
-                continue
-        buffer.append(char)
-        index += 1
-    yield from flush()
-
-
-def _wrap(tag: Optional[str], class_name: Optional[str], body: str) -> str:
+def _wrap(tag: str | None, class_name: str | None, body: str) -> str:
     if tag is None:
         return body
-    attrs = f' class="{escape(class_name)}"' if class_name is not None else ""
-    return f"<{tag}{attrs}>{body}</{tag}>"
+    attribute = "" if class_name is None else f' class="{_escape(class_name)}"'
+    return f"<{tag}{attribute}>{body}</{tag}>"
+
+
+def _render(
+    tokens: Iterable[Token],
+    tag: str,
+    class_name: str | None,
+    rest_tag: str | None,
+    rest_class_name: str | None,
+) -> str:
+    parts: list[str] = []
+    for token in tokens:
+        if token.fixation == 0:
+            parts.append(_escape(token.text))
+            continue
+        parts.append(_wrap(tag, class_name, _escape(token.fixation_text)))
+        if token.rest_text:  # a fully emphasised word gets no (empty) rest element
+            parts.append(_wrap(rest_tag, rest_class_name, _escape(token.rest_text)))
+    return "".join(parts)
 
 
 def to_html(
     text: str,
+    options: Options | None = None,
+    *,
     tag: str = "b",
-    class_name: Optional[str] = None,
-    rest_tag: Optional[str] = None,
-    rest_class_name: Optional[str] = None,
+    class_name: str | None = None,
+    rest_tag: str | None = None,
+    rest_class_name: str | None = None,
     ignore_html_tags: bool = True,
-    skip_tags: Sequence[str] = SKIP_TAGS,
-    options: Optional[Options | Mapping[str, Any]] = None,
+    skip_tags: Iterable[str] = SKIP_TAGS,
     **overrides: Any,
 ) -> str:
     """Render ``text`` as HTML with the leading part of each word emphasised.
 
-    With ``ignore_html_tags`` (the default) markup, character entities and the
-    content of ``skip_tags`` are passed through verbatim; everything else is
-    escaped. Set it to ``False`` to treat the whole input as plain text.
+    Each fixation is wrapped in ``tag`` (with ``class_name``); the rest of the
+    word is plain text unless ``rest_tag`` is given. Everything emitted as text
+    has ``& < > "`` escaped.
+
+    With ``ignore_html_tags`` (the default) existing tags and character
+    references pass through verbatim, the content of ``skip_tags`` elements --
+    plus ``tag``/``rest_tag`` themselves, so already-emphasised markup is not
+    wrapped twice -- is left untouched, and the saccade count continues across
+    markup. With ``ignore_html_tags=False`` the input is plain text and every
+    ``<``, ``>`` and ``&`` is escaped.
     """
-    opts = coerce_options(options, **overrides)
+    opts = resolve(options, overrides)
+    if not ignore_html_tags:
+        tokens, _ = tokenize_from(text, opts, 0)
+        return _render(tokens, tag, class_name, rest_tag, rest_class_name)
+
+    implicit = (tag, rest_tag) if rest_tag is not None else (tag,)
     parts: list[str] = []
     word_index = 0
-    stream: Iterator[tuple[bool, str]]
-    stream = _chunks(text, skip_tags) if ignore_html_tags else iter([(False, text)])
-    for is_raw, chunk in stream:
+    for is_raw, chunk in _split_markup(text, (*skip_tags, *implicit)):
         if is_raw:
             parts.append(chunk)
-            continue
-        for token, word_index in iter_tokens(chunk, opts, word_index):
-            if token.fixation > 0:
-                parts.append(_wrap(tag, class_name, escape(token.fixation_text)))
-                if token.rest_text:
-                    parts.append(_wrap(rest_tag, rest_class_name, escape(token.rest_text)))
-            else:
-                parts.append(escape(token.text))
+        else:
+            tokens, word_index = tokenize_from(chunk, opts, word_index)
+            parts.append(_render(tokens, tag, class_name, rest_tag, rest_class_name))
     return "".join(parts)
 
 
 def to_markdown(
     text: str,
+    options: Options | None = None,
+    *,
     marker: str = "**",
-    options: Optional[Options | Mapping[str, Any]] = None,
     **overrides: Any,
 ) -> str:
-    """Render ``text`` as Markdown, emphasising each fixation with ``marker``."""
-    opts = coerce_options(options, **overrides)
-    parts: list[str] = []
-    word_index = 0
-    for token, word_index in iter_tokens(text, opts, word_index):
-        if token.fixation > 0:
-            parts.append(f"{marker}{token.fixation_text}{marker}{token.rest_text}")
-        else:
-            parts.append(token.text)
-    return "".join(parts)
+    """Render ``text`` as Markdown, wrapping each fixation in ``marker``.
+
+    Nothing is escaped; the input is assumed to be Markdown already.
+    """
+    tokens, _ = tokenize_from(text, resolve(options, overrides), 0)
+    return "".join(
+        f"{marker}{token.fixation_text}{marker}{token.rest_text}" if token.fixation else token.text
+        for token in tokens
+    )

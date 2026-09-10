@@ -10,8 +10,9 @@ import pytest
 from smooth_reading.cli import main
 
 
-def run(argv: list[str], stdin: str, capsys: pytest.CaptureFixture[str],
-        monkeypatch: pytest.MonkeyPatch) -> str:
+def run(
+    argv: list[str], stdin: str, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> str:
     monkeypatch.setattr("sys.stdin", io.StringIO(stdin))
     assert main(argv) == 0
     return capsys.readouterr().out
@@ -43,9 +44,7 @@ def test_fixation_and_saccade(
     assert out == "<b>Smoot</b>h reading <b>work</b>s."
 
 
-def test_tag_and_class(
-    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_tag_and_class(capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch) -> None:
     out = run(["--tag", "span", "--class", "sr-fixation"], "smooth", capsys, monkeypatch)
     assert out == '<span class="sr-fixation">smo</span>oth'
 

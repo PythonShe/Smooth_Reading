@@ -1,30 +1,24 @@
-"""Command line interface for smooth-reading."""
+"""``smooth-reading`` command line interface."""
 
 from __future__ import annotations
 
 import argparse
 import sys
-from typing import Optional, Sequence
+from collections.abc import Sequence
 
 from .html import to_html, to_markdown
 from .options import DEFAULTS, Options
 
-__all__ = ["build_parser", "main"]
 
-
-def build_parser() -> argparse.ArgumentParser:
+def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="smooth-reading",
         description=(
             "Emphasise the leading letters of every word so the eye gets an "
-            "artificial fixation point. Reads a file or standard input."
+            "artificial fixation point. Reads a file or standard input, writes HTML."
         ),
     )
-    parser.add_argument(
-        "file",
-        nargs="?",
-        help="input file; omit or use '-' to read standard input",
-    )
+    parser.add_argument("file", nargs="?", help="input file; omit or use '-' for standard input")
     parser.add_argument(
         "--fixation",
         type=int,
@@ -44,41 +38,24 @@ def build_parser() -> argparse.ArgumentParser:
         default=DEFAULTS.min_word_length,
         help="skip words shorter than this; default %(default)s",
     )
-    parser.add_argument("--tag", default="b", help="HTML tag for the fixation; default b")
-    parser.add_argument(
-        "--class",
-        dest="class_name",
-        default=None,
-        help="class attribute for the fixation element",
-    )
-    parser.add_argument(
-        "--markdown",
-        action="store_true",
-        help="emit Markdown (**prefix**rest) instead of HTML",
-    )
-    parser.add_argument(
-        "--numbers",
-        action="store_true",
-        help="also emphasise words made only of digits",
-    )
+    parser.add_argument("--numbers", action="store_true", help="also emphasise digit-only words")
+    parser.add_argument("--tag", default="b", help="HTML tag for the fixation; default %(default)s")
+    parser.add_argument("--class", dest="class_name", help="class attribute for the fixation tag")
     parser.add_argument(
         "--no-ignore-html-tags",
         dest="ignore_html_tags",
         action="store_false",
         help="treat the input as plain text and escape existing markup",
     )
+    parser.add_argument(
+        "--markdown", action="store_true", help="emit Markdown (**prefix**rest) instead of HTML"
+    )
     return parser
 
 
-def _read(path: Optional[str]) -> str:
-    if path is None or path == "-":
-        return sys.stdin.read()
-    with open(path, encoding="utf-8") as handle:
-        return handle.read()
-
-
-def main(argv: Optional[Sequence[str]] = None) -> int:
-    args = build_parser().parse_args(argv)
+def main(argv: Sequence[str] | None = None) -> int:
+    parser = _parser()
+    args = parser.parse_args(argv)
     try:
         options = Options(
             fixation=args.fixation,
@@ -87,25 +64,29 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             emphasize_numbers=args.numbers,
         )
     except ValueError as error:
-        build_parser().error(str(error))
-        return 2  # pragma: no cover - argparse.error raises SystemExit
+        parser.error(str(error))
+
     try:
-        text = _read(args.file)
+        if args.file in (None, "-"):
+            text = sys.stdin.read()
+        else:
+            with open(args.file, encoding="utf-8") as handle:
+                text = handle.read()
     except OSError as error:
         print(f"smooth-reading: {error}", file=sys.stderr)
         return 1
+
     if args.markdown:
-        sys.stdout.write(to_markdown(text, options=options))
+        output = to_markdown(text, options)
     else:
-        sys.stdout.write(
-            to_html(
-                text,
-                tag=args.tag,
-                class_name=args.class_name,
-                ignore_html_tags=args.ignore_html_tags,
-                options=options,
-            )
+        output = to_html(
+            text,
+            options,
+            tag=args.tag,
+            class_name=args.class_name,
+            ignore_html_tags=args.ignore_html_tags,
         )
+    sys.stdout.write(output)
     return 0
 
 

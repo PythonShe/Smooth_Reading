@@ -1,78 +1,61 @@
 """Approximate grapheme-cluster segmentation using only the standard library.
 
-Full UAX #29 grapheme cluster breaking is *not* implemented (that would need the
-``regex`` module or a bundled break-property table). What is implemented is the
-subset the fixation algorithm actually depends on:
+The spec (section 3) counts *user-perceived characters*. Full UAX #29 breaking
+would need the third-party ``regex`` module or a bundled property table, so this
+implements just the subset that matters inside word tokens:
 
-* a base character plus any following combining marks (Unicode general category
-  ``Mn``, ``Mc`` or ``Me``, which also covers variation selectors) is one cluster;
-* a ZWJ (U+200D) always joins the following character into the same cluster,
-  so emoji ZWJ sequences count as one cluster;
-* a CR+LF pair is one cluster.
+* a base character followed by any combining marks (general category ``Mn``,
+  ``Mc`` or ``Me``, which also covers variation selectors) is one cluster;
+* a ZWJ (U+200D) joins the following character into the same cluster, so emoji
+  ZWJ sequences count once;
+* CR+LF is one cluster.
 
-Known limitations versus UAX #29: regional-indicator pairs (flag emoji) count as
-two clusters, Hangul jamo sequences are not composed, and prepend characters and
-emoji modifier bases without ZWJ are not joined. None of these appear inside word
-tokens produced by :mod:`smooth_reading.tokenizer`, and the shared ``common``
-fixtures deliberately avoid emoji (spec section 3).
+Known gaps versus UAX #29: regional-indicator pairs (flag emoji) count as two,
+Hangul jamo sequences are not composed, and prepend characters and emoji
+modifiers without ZWJ are not joined. None of these can occur inside a word
+token produced by :mod:`smooth_reading.tokenizer`.
 """
 
 from __future__ import annotations
 
 import unicodedata
-from typing import Iterator
-
-__all__ = ["iter_graphemes", "graphemes", "grapheme_count", "take_graphemes"]
+from collections.abc import Iterator
 
 _ZWJ = "‍"
-_MARKS = frozenset(("Mn", "Mc", "Me"))
-
-
-def _is_mark(char: str) -> bool:
-    return unicodedata.category(char) in _MARKS
+_MARK_CATEGORIES = frozenset({"Mn", "Mc", "Me"})
 
 
 def iter_graphemes(text: str) -> Iterator[str]:
     """Yield the grapheme clusters of ``text`` in order."""
     length = len(text)
-    index = 0
-    while index < length:
-        end = index + 1
-        if text[index] == "\r" and end < length and text[end] == "\n":
+    start = 0
+    while start < length:
+        end = start + 1
+        if text[start] == "\r" and text[end : end + 1] == "\n":
             end += 1
         while end < length:
             char = text[end]
-            if _is_mark(char):
+            if unicodedata.category(char) in _MARK_CATEGORIES:
                 end += 1
             elif char == _ZWJ:
-                end += 1
-                if end < length:
-                    end += 1
+                end = min(end + 2, length)  # the ZWJ and whatever it joins
             else:
                 break
-        yield text[index:end]
-        index = end
-
-
-def graphemes(text: str) -> list[str]:
-    """Return the grapheme clusters of ``text`` as a list."""
-    return list(iter_graphemes(text))
+        yield text[start:end]
+        start = end
 
 
 def grapheme_count(text: str) -> int:
-    """Return the number of user-perceived characters in ``text``."""
+    """Number of user-perceived characters in ``text``."""
     return sum(1 for _ in iter_graphemes(text))
 
 
-def take_graphemes(text: str, count: int) -> tuple[str, str]:
+def split_graphemes(text: str, count: int) -> tuple[str, str]:
     """Split ``text`` after ``count`` grapheme clusters into ``(prefix, rest)``."""
-    if count <= 0:
-        return "", text
-    taken = 0
     index = 0
     for cluster in iter_graphemes(text):
-        if taken == count:
+        if count <= 0:
             break
         index += len(cluster)
-        taken += 1
+        count -= 1
     return text[:index], text[index:]

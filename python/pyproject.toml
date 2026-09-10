@@ -30,6 +30,7 @@ classifiers = [
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
   "Programming Language :: Python :: 3 :: Only",
   "Topic :: Text Processing :: Markup :: HTML",
   "Typing :: Typed",
@@ -45,7 +46,7 @@ Issues = "https://github.com/PythonShe/smooth_reading/issues"
 smooth-reading = "smooth_reading.cli:main"
 
 [project.optional-dependencies]
-dev = ["pytest>=7", "mypy>=1.8"]
+dev = ["pytest>=9", "mypy>=2", "ruff>=0.16"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["smooth_reading"]
@@ -59,3 +60,11 @@ testpaths = ["tests"]
 [tool.mypy]
 python_version = "3.10"
 strict = true
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
+allowed-confusables = ["’"]  # the typographic apostrophe the tokenizer joins on
