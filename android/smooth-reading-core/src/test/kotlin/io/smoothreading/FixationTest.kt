@@ -1,6 +1,7 @@
 package io.smoothreading
 
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
@@ -83,6 +84,33 @@ class FixationTest {
     fun `graphemes are counted as clusters not code units`() {
         // e + combining acute is one grapheme cluster.
         assertEquals(4, Graphemes.count("café"))
-        assertEquals(1, Graphemes.count("👩‍👩‍👧"))
+        assertEquals(1, Graphemes.count("👩\u200d👩\u200d👧"))
+    }
+    @Test
+    fun `round half up uses the integer form of SPEC section 2`() {
+        // 90 * 0.35 is 31.499999999999996 in binary floating point, so
+        // floor(x + 0.5) would give 31; floor((90 * 35 + 50) / 100) gives 32.
+        assertEquals(32, SmoothReading.fixationLength("x".repeat(90), 90, SmoothOptions(fixation = 2)))
+        assertEquals(60, SmoothReading.fixationLength("x".repeat(170), 170, SmoothOptions(fixation = 2)))
+        // Exact halves round up, not to even.
+        assertEquals(2, SmoothReading.fixationLength("the", 3)) // 1.5 -> 2
+        assertEquals(3, SmoothReading.fixationLength("naive", 5)) // 2.5 -> 3
+        assertEquals(4, SmoothReading.fixationLength("x".repeat(10), 10, SmoothOptions(fixation = 2))) // 3.5 -> 4
+    }
+
+    @Test
+    fun `only decimal digits count as numbers`() {
+        assertEquals(0, SmoothReading.fixationLength("٤٢")) // Arabic-Indic digits
+        assertEquals(1, SmoothReading.fixationLength("½", 1)) // fraction: not a digit
+        assertEquals(1, SmoothReading.fixationLength("Ⅻ", 1)) // letter-number: not a digit
+        assertEquals(2, SmoothReading.fixationLength("4th", 3))
+    }
+
+    @Test
+    fun `options are validated`() {
+        assertThrows(IllegalArgumentException::class.java) { SmoothOptions(fixation = 0) }
+        assertThrows(IllegalArgumentException::class.java) { SmoothOptions(fixation = 6) }
+        assertThrows(IllegalArgumentException::class.java) { SmoothOptions(saccade = 0) }
+        assertThrows(IllegalArgumentException::class.java) { SmoothOptions(minWordLength = -1) }
     }
 }

@@ -1,0 +1,44 @@
+[
+  {
+    "name": "existing character references pass through verbatim and split words",
+    "input": "Tom &amp; Jerry &lt;3 don&#39;t it&#x27;s",
+    "options": {},
+    "html": "<b>To</b>m &amp; <b>Jer</b>ry &lt;3 <b>do</b>n&#39;<b>t</b> <b>i</b>t&#x27;<b>s</b>"
+  },
+  {
+    "name": "a bare ampersand that does not start a reference is escaped",
+    "input": "Tom & Jerry &amp a &1; &b &",
+    "options": {},
+    "html": "<b>To</b>m &amp; <b>Jer</b>ry &amp;<b>am</b>p <b>a</b> &amp;1; &amp;<b>b</b> &amp;"
+  },
+  {
+    "name": "every ampersand is escaped when tags are not ignored",
+    "input": "Tom &amp; Jerry",
+    "options": { "ignoreHtmlTags": false },
+    "html": "<b>To</b>m &amp;<b>am</b>p; <b>Jer</b>ry"
+  },
+  {
+    "name": "an angle bracket only starts markup before a letter, slash, bang or question mark",
+    "input": "a < b, 1<2, x <3 y <!-- a > b --> <?pi?> <br/>z",
+    "options": {},
+    "html": "<b>a</b> &lt; <b>b</b>, 1&lt;2, <b>x</b> &lt;3 <b>y</b> <!-- a > b --> <?pi?> <br/><b>z</b>"
+  },
+  {
+    "name": "an unterminated tag is text",
+    "input": "a <p b",
+    "options": {},
+    "html": "<b>a</b> &lt;<b>p</b> <b>b</b>"
+  },
+  {
+    "name": "restTag is implicitly skipped like tag",
+    "input": "<span>Smo</span><i>oth</i> reading",
+    "options": { "tag": "span", "restTag": "i" },
+    "html": "<span>Smo</span><i>oth</i> <span>read</span><i>ing</i>"
+  },
+  {
+    "name": "a word without a fixation is plain text, never wrapped in restTag",
+    "input": "a 2024 reading",
+    "options": { "fixation": 2, "restTag": "i" },
+    "html": "a 2024 <b>re</b><i>ading</i>"
+  }
+]

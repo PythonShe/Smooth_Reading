@@ -12,25 +12,18 @@ import org.junit.jupiter.api.TestFactory
 /**
  * The shared cross-port fixtures (SPEC §7).
  *
- * Every JSON file under `fixtures/common` must pass in every port; the files
- * under `fixtures/segmenter` only where the tokenizer is ICU-backed, which for
- * this project means Android (`android.icu.text.BreakIterator`) and not a plain
- * JDK — see [WordSegmenter].
- * Both directories are skipped as *assumptions*, not failures, when they are
- * absent or empty, so the build still works in a checkout without them.
+ * Every JSON file under `fixtures/common` must pass in every port. The files
+ * under `fixtures/segmenter` need an ICU word breaker and run in the Android
+ * module (`AndroidFixtureTest`) against `IcuWordSegmenter`.
+ * A missing or empty directory is skipped as an *assumption*, not a failure,
+ * so the build still works in a checkout without it.
  */
 class FixtureTest {
 
     @TestFactory
-    fun common(): List<DynamicTest> = cases("common", SmoothReading.defaultSegmenter())
+    fun common(): List<DynamicTest> = cases("common")
 
-    @TestFactory
-    fun segmenter(): List<DynamicTest> {
-        assumeTrue(icuIsAvailable(), "no ICU word breaker on this runtime (JDK BreakIterator is rule-based)")
-        return cases("segmenter", BreakIteratorWordSegmenter())
-    }
-
-    private fun cases(directory: String, segmenter: WordSegmenter): List<DynamicTest> {
+    private fun cases(directory: String): List<DynamicTest> {
         val dir = fixturesRoot().resolve(directory)
         assumeTrue(dir.isDirectory, "fixtures directory not present: $dir")
         val files = dir.listFiles { file -> file.isFile && file.extension == "json" }
@@ -47,7 +40,6 @@ class FixtureTest {
                     val html = SmoothReading.toHtml(
                         case.getString("input"),
                         htmlOptions(case.optJSONObject("options")),
-                        segmenter,
                     )
                     assertEquals(case.getString("html"), html)
                 }
@@ -88,11 +80,4 @@ class FixtureTest {
         // ../../fixtures relative to this module's project directory.
         return File("..").resolve("../fixtures").normalize()
     }
-
-    /**
-     * `true` when `java.text.BreakIterator` is the ICU implementation: only ICU
-     * follows UAX #29 and splits `well-known` in two.
-     */
-    private fun icuIsAvailable(): Boolean =
-        BreakIteratorWordSegmenter().segment("well-known").count { it.isWord } == 2
 }

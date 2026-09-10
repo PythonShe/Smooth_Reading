@@ -1,7 +1,6 @@
 package io.smoothreading
 
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class TokenizeTest {
@@ -68,17 +67,18 @@ class TokenizeTest {
     }
 
     @Test
-    fun `the default tokenizer is the spec one, not the JDK break iterator`() {
-        // Documented in WordSegmenter: the JDK's rule-based iterator keeps
-        // "well-known" as one word, which the spec forbids. On Android the same
-        // class is ICU-backed and does split it.
-        assertEquals(SpecWordSegmenter, SmoothReading.defaultSegmenter())
-        val breakIterator = BreakIteratorWordSegmenter()
-            .segment("well-known")
-            .filter { it.isWord }
-            .map { it.text }
-        assertTrue(breakIterator == listOf("well-known") || breakIterator == listOf("well", "known")) {
-            "unexpected break-iterator behaviour: $breakIterator"
-        }
+    fun `words off the saccade and without a fixation are plain`() {
+        val off = SmoothReading.tokenize("one two", SmoothOptions(saccade = 2))[2] as SmoothToken.Word
+        assertEquals(SmoothToken.Word("two", 0, "", "two"), off)
+        val number = SmoothReading.tokenize("2024").single() as SmoothToken.Word
+        assertEquals(SmoothToken.Word("2024", 0, "", "2024"), number)
+    }
+
+    @Test
+    fun `tokens round-trip a custom segmenter's output`() {
+        val everyChar = WordSegmenter { text -> text.map { RawSegment(it.toString(), it.isLetter()) } }
+        val tokens = SmoothReading.tokenize("ab c", SmoothOptions(), everyChar)
+        assertEquals("ab c", tokens.joinToString("") { it.text })
+        assertEquals(listOf("a", "b", "c"), tokens.filterIsInstance<SmoothToken.Word>().map { it.fixationText })
     }
 }

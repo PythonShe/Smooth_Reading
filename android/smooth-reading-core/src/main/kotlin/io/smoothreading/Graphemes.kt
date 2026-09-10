@@ -4,42 +4,51 @@ import java.text.BreakIterator
 import java.util.Locale
 
 /**
- * Grapheme-cluster helpers (SPEC §3).
+ * Grapheme-cluster helper (SPEC §3).
  *
  * `BreakIterator.getCharacterInstance()` is ICU-backed on Android
  * (`android.icu.text.BreakIterator`) and rule-based on the JDK; both implement
  * UAX #29 extended grapheme clusters, so combining marks are never split from
  * their base character.
+ *
+ * One instance is created per tokenize pass and its break iterator is reused
+ * for every word, which keeps a 1 MB input free of per-word iterator setup.
  */
-public object Graphemes {
+internal class Graphemes(private val locale: Locale?) {
 
-    /** Split [text] into grapheme clusters. */
-    @JvmStatic
-    @JvmOverloads
-    public fun split(text: String, locale: Locale? = null): List<String> {
-        if (text.isEmpty()) return emptyList()
-        val iterator = characterInstance(locale)
-        iterator.setText(text)
-        val out = ArrayList<String>(text.length)
-        var start = iterator.first()
-        var end = iterator.next()
-        while (end != BreakIterator.DONE) {
-            out.add(text.substring(start, end))
-            start = end
-            end = iterator.next()
-        }
-        return out
+    private val iterator: BreakIterator by lazy(LazyThreadSafetyMode.NONE) {
+        if (locale == null) BreakIterator.getCharacterInstance() else BreakIterator.getCharacterInstance(locale)
     }
 
     /** Number of user-perceived characters in [text]. */
-    @JvmStatic
-    @JvmOverloads
-    public fun count(text: String, locale: Locale? = null): Int = split(text, locale).size
+    fun count(text: String): Int {
+        if (text.isEmpty()) return 0
+        val breaks = iterator
+        breaks.setText(text)
+        var n = 0
+        while (breaks.next() != BreakIterator.DONE) n += 1
+        return n
+    }
 
-    private fun characterInstance(locale: Locale?): BreakIterator =
-        if (locale == null) {
-            BreakIterator.getCharacterInstance()
-        } else {
-            BreakIterator.getCharacterInstance(locale)
+    /**
+     * Char offset just after the first [clusters] grapheme clusters of [text]
+     * (`text.length` when [clusters] exceeds the cluster count).
+     */
+    fun offsetAfter(text: String, clusters: Int): Int {
+        if (clusters <= 0 || text.isEmpty()) return 0
+        val breaks = iterator
+        breaks.setText(text)
+        var end = 0
+        repeat(clusters) {
+            val next = breaks.next()
+            if (next == BreakIterator.DONE) return text.length
+            end = next
         }
+        return end
+    }
+
+    companion object {
+        /** One-off count with a fresh iterator. */
+        fun count(text: String, locale: Locale? = null): Int = Graphemes(locale).count(text)
+    }
 }

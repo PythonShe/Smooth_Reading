@@ -17,42 +17,33 @@ import java.util.Locale
  * `io.smoothreading.SpecWordSegmenter` instead when you need output that is
  * byte-identical with the pure-regex ports (Python, and JS without
  * `Intl.Segmenter`) for inputs such as `3.14` where ICU and the regex differ.
+ *
+ * @param locale the locale handed to ICU; `null` = device default
  */
 public class IcuWordSegmenter(private val locale: Locale? = null) : WordSegmenter {
 
     override fun segment(text: String): List<RawSegment> {
         if (text.isEmpty()) return emptyList()
-        val iterator = if (locale == null) {
-            BreakIterator.getWordInstance()
-        } else {
-            BreakIterator.getWordInstance(locale)
-        }
+        val iterator = if (locale == null) BreakIterator.getWordInstance() else BreakIterator.getWordInstance(locale)
         iterator.setText(text)
 
         val out = ArrayList<RawSegment>()
+        var separatorStart = 0
         var start = iterator.first()
         var end = iterator.next()
-        var ruleStatus = iterator.ruleStatus
         while (end != BreakIterator.DONE) {
-            val piece = text.substring(start, end)
             // Statuses below WORD_NONE_LIMIT cover whitespace and punctuation;
             // everything above (NUMBER, LETTER, KANA, IDEO) is word-like, which
             // is exactly `Intl.Segmenter`'s `isWordLike`.
-            val isWord = ruleStatus >= BreakIterator.WORD_NONE_LIMIT
-            if (isWord) {
-                out.add(RawSegment(piece, isWord = true))
-            } else {
-                val last = out.lastOrNull()
-                if (last != null && !last.isWord) {
-                    out[out.size - 1] = RawSegment(last.text + piece, isWord = false)
-                } else {
-                    out.add(RawSegment(piece, isWord = false))
-                }
+            if (iterator.ruleStatus >= BreakIterator.WORD_NONE_LIMIT) {
+                if (separatorStart < start) out.add(RawSegment(text.substring(separatorStart, start), isWord = false))
+                out.add(RawSegment(text.substring(start, end), isWord = true))
+                separatorStart = end
             }
             start = end
             end = iterator.next()
-            ruleStatus = iterator.ruleStatus
         }
+        if (separatorStart < text.length) out.add(RawSegment(text.substring(separatorStart), isWord = false))
         return out
     }
 }

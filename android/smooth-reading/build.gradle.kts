@@ -51,13 +51,19 @@ tasks.withType<Test>().configureEach {
 
 dependencies {
     api(project(":smooth-reading-core"))
-    // Compose text only (AnnotatedString / SpanStyle); no Compose runtime and no
-    // Compose compiler plugin, because this module declares no @Composable.
-    implementation(platform(libs.androidx.compose.bom))
-    api(libs.androidx.compose.ui.text)
+    // `annotatedString()` needs Compose's ui-text (AnnotatedString / SpanStyle)
+    // at compile time only. It is deliberately `compileOnly`, not `api`: a
+    // View-only consumer must not pull the Compose runtime into its APK, and a
+    // Compose consumer already has ui-text on its classpath. The class that
+    // references Compose is loaded lazily, and consumer-rules.pro carries the
+    // matching `-dontwarn` for R8. Documented in README.md ("Install").
+    compileOnly(platform(libs.androidx.compose.bom))
+    compileOnly(libs.androidx.compose.ui.text)
 
     testImplementation(libs.junit4)
     testImplementation(libs.robolectric)
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.compose.ui.text)
 }
 
 publishing {

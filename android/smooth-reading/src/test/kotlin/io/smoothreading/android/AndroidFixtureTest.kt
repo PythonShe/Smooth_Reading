@@ -3,6 +3,7 @@ package io.smoothreading.android
 import io.smoothreading.HtmlOptions
 import io.smoothreading.SmoothOptions
 import io.smoothreading.SmoothReading
+import io.smoothreading.SpecWordSegmenter
 import io.smoothreading.WordSegmenter
 import java.io.File
 import org.json.JSONArray
@@ -27,7 +28,7 @@ class AndroidFixtureTest {
 
     @Test
     fun common() {
-        runFixtures("common", SmoothReading.defaultSegmenter())
+        runFixtures("common", SpecWordSegmenter)
     }
 
     @Test

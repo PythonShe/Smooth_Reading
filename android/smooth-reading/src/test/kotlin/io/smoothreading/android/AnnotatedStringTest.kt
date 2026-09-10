@@ -37,4 +37,17 @@ class AnnotatedStringTest {
         val ranges = annotated.spanStyles.map { annotated.text.substring(it.start, it.end) to it.item }
         assertEquals(listOf("r" to SpanStyle(fontWeight = FontWeight.Bold), "eading" to rest), ranges)
     }
+
+    @Test
+    fun `words without a fixation carry no style`() {
+        val rest = SpanStyle(fontWeight = FontWeight.Light)
+        val annotated = SmoothReading.annotatedString(
+            "a 2024 one two",
+            SmoothOptions(fixation = 2, saccade = 2),
+            restStyle = rest,
+        )
+        // `a` has no fixation at strength 2, `2024` is a number, `two` is off the saccade.
+        val ranges = annotated.spanStyles.map { annotated.text.substring(it.start, it.end) to it.item }
+        assertEquals(listOf("o" to SpanStyle(fontWeight = FontWeight.Bold), "ne" to rest), ranges)
+    }
 }
