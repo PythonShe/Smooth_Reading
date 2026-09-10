@@ -35,22 +35,29 @@ Usage:
 </SmoothText>
 ```
 
-Memoise for large texts:
+The component above is a pure function of its props: `tokenize` is linear and fast, so there is no `useMemo` or `useEffect` in the common path, and it renders identically on the server and in React Server Components.
+
+Large texts: if a very long article re-renders often for unrelated reasons, memoise the component itself rather than reaching for effects:
 
 ```tsx
-const tokens = useMemo(() => tokenize(text, options), [text, options.fixation, options.saccade]);
+export const SmoothText = memo(function SmoothText({ children, ...options }: Props) { /* as above */ });
 ```
 
-Applying to existing rendered HTML (client only, e.g. a CMS article):
+Applying to existing rendered HTML (a CMS article you receive as a string) is the one case that needs DOM access. Use a **ref callback**, not `useEffect`: React calls it once when the node mounts and once with `null` when it unmounts, which is exactly the apply/restore lifecycle, and it never re-runs on unrelated renders.
 
 ```tsx
 "use client";
-import { useEffect, useRef } from "react";
+import { useCallback, useRef } from "react";
 import { applyToElement } from "@smooth-reading/core";
 
 export function SmoothArticle({ html }: { html: string }) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => ref.current ? applyToElement(ref.current, { fixation: 3 }) : undefined, [html]);
-  return <div ref={ref} dangerouslySetInnerHTML={{ __html: html }} />; // html is your own trusted markup
+  const restore = useRef<() => void>();
+  const attach = useCallback((node: HTMLDivElement | null) => {
+    restore.current?.();
+    restore.current = node ? applyToElement(node, { fixation: 3 }) : undefined;
+  }, []);
+  return <div ref={attach} dangerouslySetInnerHTML={{ __html: html }} />; // html is your own trusted markup
 }
 ```
+
+Prefer the pure component whenever you control the text; keep `applyToElement` for markup you do not own.

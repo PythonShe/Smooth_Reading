@@ -77,6 +77,11 @@ lacks, add it to the spec in the same commit.
 - **Android: one artifact serves both Views and Compose.**
   `smooth-reading-core` is pure JVM; `smooth-reading` adds `spanned()` for
   `TextView` and `annotatedString()` for Compose.
+- **No `useEffect` in React code or recipes.** Render from `tokenize()` as a
+  pure function of props (SSR/RSC safe, no re-run hazards). The only DOM
+  integration (`applyToElement` on markup you do not own) uses a ref
+  callback for the apply/restore lifecycle. The same spirit applies to other
+  frameworks: derive, don't synchronise.
 - **Presentation is CSS**: emit neutral markup (`<b>` or configurable
   tag/class); weight, colour and opacity live in `styles.css` custom
   properties.
