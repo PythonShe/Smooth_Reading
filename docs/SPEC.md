@@ -126,7 +126,7 @@ The project ships one package per platform runtime. Framework adapters (React, V
 | Package | Runtime | Export |
 | --- | --- | --- |
 | `@smooth-reading/core` (npm) | Web, Node, Bun, Deno, React Native | `tokenize`, `toHtml`, `applyToElement`, `createTransformStream`, `styles.css` |
-| `SmoothReading` (Swift Package) | iOS 17+, macOS 14+ | `tokenize`, `attributedString(_:options:)` → `AttributedString` (SwiftUI `Text` and UIKit/AppKit), `html(_:options:)` |
+| `SmoothReading` (Swift Package) | iOS 17+, macOS 14+ | `tokenize`, `nsAttributedString(_:options:)` → `NSAttributedString` for UIKit/AppKit (primary), `attributedString(_:options:)` → `AttributedString` for SwiftUI, `html(_:options:)` |
 | `io.smoothreading:smooth-reading` (Maven) | Android (minSdk 26), JVM | `tokenize`, `annotatedString()` for Compose, `spanned()` for `TextView`, `toHtml()` |
 | `smooth-reading` (PyPI) | Python 3.10+ | `tokenize`, `to_html`, CLI |
 

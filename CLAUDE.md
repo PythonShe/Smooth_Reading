@@ -8,7 +8,7 @@ one first-party port per platform runtime. License: Apache-2.0.
 | Directory | Package | Tech Stack | Description |
 |------|------|--------|------|
 | `packages/core/` | `@smooth-reading/core` | TypeScript, zero runtime deps | Tokenizer (`Intl.Segmenter` + regex fallback), `toHtml`, `applyToElement`, streaming transform, `styles.css` |
-| `swift/` | `SmoothReading` (SPM) | Swift 6, iOS 17+/macOS 14+ | Same algorithm; `AttributedString` for SwiftUI/UIKit, `html()` |
+| `swift/` | `SmoothReading` (SPM) | Swift 6, iOS 17+/macOS 14+ | Same algorithm; `NSAttributedString` + `UILabel`/`NSTextField` helpers for UIKit/AppKit (primary), `AttributedString` for SwiftUI, `html()` |
 | `android/` | `io.smoothreading:smooth-reading` | Kotlin, Gradle, minSdk 26 | Same algorithm; Compose `AnnotatedString`, `Spanned`, `toHtml()` |
 | `python/` | `smooth-reading` (PyPI) | Python 3.10+, zero deps | Same algorithm, regex tokenizer, `smooth-reading` CLI |
 | `fixtures/` | shared fixtures | JSON | `common/` must pass in every port; `segmenter/` only where an ICU word-breaker exists |
@@ -53,6 +53,14 @@ lacks, add it to the spec in the same commit.
 - **No `innerHTML` in recipes**: framework snippets render real elements from
   `tokenize()` output. `toHtml` output is for string contexts (SSR templates,
   static site generators, Markdown pipelines).
+- **Apple platforms: UIKit/AppKit first, SwiftUI second.** The primary Swift
+  API is `NSAttributedString` with real bold fonts derived from font
+  descriptor traits, plus `UILabel`/`UITextView`/`NSTextField`/`NSTextView`
+  helpers. `AttributedString` for SwiftUI is a convenience built on the same
+  token walk. Never make a UIKit/AppKit feature depend on a SwiftUI type.
+- **Android: one artifact serves both Views and Compose.**
+  `smooth-reading-core` is pure JVM; `smooth-reading` adds `spanned()` for
+  `TextView` and `annotatedString()` for Compose.
 - **Presentation is CSS**: emit neutral markup (`<b>` or configurable
   tag/class); weight, colour and opacity live in `styles.css` custom
   properties.

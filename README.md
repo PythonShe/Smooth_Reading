@@ -13,7 +13,7 @@ The technique is similar to commercial fixation-reading products, but this proje
 | Package | Registry | Platforms |
 | --- | --- | --- |
 | [`@smooth-reading/core`](packages/core) | npm | Web, Node, React Native. Zero-dependency tokenizer, HTML transformer, DOM applier, streaming transform. |
-| [`SmoothReading`](swift) | Swift Package Manager | iOS, macOS. `AttributedString` output for SwiftUI and UIKit. |
+| [`SmoothReading`](swift) | Swift Package Manager | iOS, macOS. `NSAttributedString` for UIKit/AppKit, `AttributedString` for SwiftUI. |
 | [`io.smoothreading:smooth-reading`](android) | Maven Central | Android, JVM. `AnnotatedString` for Compose, `Spanned` for views. |
 | [`smooth-reading`](python) | PyPI | Python 3.10+. Same algorithm plus a CLI. |
 
@@ -45,11 +45,11 @@ export function SmoothText({ children, ...opts }) {
 }
 ```
 
-Swift:
+Swift (UIKit):
 
 ```swift
 import SmoothReading
-Text(SmoothReading.attributedString("Smooth reading works.", options: .init(fixation: 3)))
+label.attributedText = SmoothReading.nsAttributedString("Smooth reading works.", options: .init(fixation: 3))
 ```
 
 See each package README for the full API.
