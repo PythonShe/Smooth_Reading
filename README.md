@@ -10,14 +10,14 @@ The technique is similar to commercial fixation-reading products, but this proje
 
 ## Packages
 
-| Package | Registry | What it is |
+| Package | Registry | Platforms |
 | --- | --- | --- |
-| [`@smooth-reading/core`](packages/core) | npm | Zero-dependency tokenizer, HTML transformer, DOM applier and streaming transform. |
-| [`@smooth-reading/react`](packages/react) | npm | `<SmoothText>` component, `useSmoothTokens` hook, `SmoothProvider`. SSR and React Server Components safe. |
-| [`@smooth-reading/vue`](packages/vue) | npm | `<SmoothText>` component, `vSmooth` directive, `useSmoothTokens` composable. |
-| [`@smooth-reading/svelte`](packages/svelte) | npm | `<SmoothText>` component and `smooth` action for Svelte 5. |
-| [`@smooth-reading/dom`](packages/dom) | npm | `<smooth-reading>` custom element and `applyToElement` for plain HTML, Angular, HTMX or any framework. |
-| [`smooth-reading`](python) | PyPI | Python port with the same algorithm, plus a CLI. |
+| [`@smooth-reading/core`](packages/core) | npm | Web, Node, React Native. Zero-dependency tokenizer, HTML transformer, DOM applier, streaming transform. |
+| [`SmoothReading`](swift) | Swift Package Manager | iOS, macOS. `AttributedString` output for SwiftUI and UIKit. |
+| [`io.smoothreading:smooth-reading`](android) | Maven Central | Android, JVM. `AnnotatedString` for Compose, `Spanned` for views. |
+| [`smooth-reading`](python) | PyPI | Python 3.10+. Same algorithm plus a CLI. |
+
+React, Vue, Svelte, Angular and other framework wrappers are a few lines on top of `tokenize()`; copy one from [docs/recipes](docs/recipes) rather than adding a dependency.
 
 ## Quick start
 
@@ -34,12 +34,22 @@ toHtml("Smooth reading works.");
 toHtml("Smooth reading works.", { fixation: 5, saccade: 2, tag: "span", className: "sr-fixation" });
 ```
 
-React:
+React (see [docs/recipes/react.md](docs/recipes/react.md)):
 
 ```tsx
-import { SmoothText } from "@smooth-reading/react";
+import { tokenize } from "@smooth-reading/core";
 
-<SmoothText fixation={3}>Smooth reading works.</SmoothText>
+export function SmoothText({ children, ...opts }) {
+  return tokenize(children, opts).map((t, i) =>
+    t.type === "word" ? <span key={i}><b>{t.fixationText}</b>{t.restText}</span> : t.text);
+}
+```
+
+Swift:
+
+```swift
+import SmoothReading
+Text(SmoothReading.attributedString("Smooth reading works.", options: .init(fixation: 3)))
 ```
 
 See each package README for the full API.

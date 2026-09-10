@@ -12,3 +12,8 @@ __pycache__/
 
 # Internal notes (research on competitors, legal analysis, planning). Not for the public repo.
 docs/internal/
+android/build/
+android/**/build/
+android/.gradle/
+android/local.properties
+.kotlin/

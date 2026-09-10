@@ -3,19 +3,22 @@
 Smooth Reading is an open-source library for *guided fixation reading*: the
 leading letters of each word are emphasised so the eye has an artificial
 fixation point. One documented algorithm, identical output in every port,
-first-class adapters for mainstream frameworks. License: Apache-2.0.
+one first-party port per platform runtime. License: Apache-2.0.
 
 | Directory | Package | Tech Stack | Description |
 |------|------|--------|------|
 | `packages/core/` | `@smooth-reading/core` | TypeScript, zero runtime deps | Tokenizer (`Intl.Segmenter` + regex fallback), `toHtml`, `applyToElement`, streaming transform, `styles.css` |
-| `packages/react/` | `@smooth-reading/react` | React 19 | `<SmoothText>`, `useSmoothTokens`, `SmoothProvider`; SSR/RSC safe |
-| `packages/vue/` | `@smooth-reading/vue` | Vue 3.5 | `<SmoothText>`, `vSmooth` directive, `useSmoothTokens` |
-| `packages/svelte/` | `@smooth-reading/svelte` | Svelte 5 runes | `<SmoothText>`, `smooth` action |
-| `packages/dom/` | `@smooth-reading/dom` | Web Components | `<smooth-reading>` custom element, `applyToElement` re-export |
+| `swift/` | `SmoothReading` (SPM) | Swift 6, iOS 17+/macOS 14+ | Same algorithm; `AttributedString` for SwiftUI/UIKit, `html()` |
+| `android/` | `io.smoothreading:smooth-reading` | Kotlin, Gradle, minSdk 26 | Same algorithm; Compose `AnnotatedString`, `Spanned`, `toHtml()` |
 | `python/` | `smooth-reading` (PyPI) | Python 3.10+, zero deps | Same algorithm, regex tokenizer, `smooth-reading` CLI |
-| `fixtures/` | shared fixtures | JSON | `common/` must pass in every port; `segmenter/` only where `Intl.Segmenter` exists |
+| `fixtures/` | shared fixtures | JSON | `common/` must pass in every port; `segmenter/` only where an ICU word-breaker exists |
 | `examples/` | demos | Vite | Playground apps, not published |
-| `docs/` | docs | Markdown | `SPEC.md` is the contract; `docs/internal/` is gitignored |
+| `docs/` | docs | Markdown | `SPEC.md` is the contract; `docs/recipes/` holds framework snippets; `docs/internal/` is gitignored |
+
+Support policy: first-party ports are exactly the four above, one per
+platform runtime. Framework adapters (React, Vue, Svelte, Angular, …) are
+never published as packages; they are copy-paste recipes in `docs/recipes/`.
+Community forks are welcome to publish their own.
 
 Algorithm boundary: `docs/SPEC.md` owns the rules (fixation ratio table,
 round-half-up, saccade counting, tokenizer, HTML escaping). Code follows the
@@ -36,17 +39,18 @@ lacks, add it to the spec in the same commit.
 
 ## Stack Policy
 
-- **Latest everything**: newest stable pnpm, TypeScript, Vite, Vitest, React,
-  Vue, Svelte, Python and all dependencies. When bumping, query the registries
+- **Latest everything**: newest stable pnpm, TypeScript, Vite, Vitest, Swift,
+  Kotlin, Gradle, Python and all dependencies. When bumping, query the registries
   (`npm view <pkg> version`, PyPI) for actual latest stable — never guess from
   training data. Record any forced downgrade (e.g. a tool that does not yet
   support the newest TypeScript) as a comment next to the pin.
 - **pnpm, never npm/yarn**: `pnpm-lock.yaml` is the committed lockfile and the
   pnpm version is pinned by `packageManager` in the root `package.json`.
   `pnpm dlx` replaces `npx`.
-- **Zero runtime dependencies in `core` and `python`.** Adapters may depend
-  only on `@smooth-reading/core` plus their framework as a peer dependency.
-- **No `innerHTML` in adapters**: framework packages render real elements from
+- **Zero runtime dependencies in every port.** Platform APIs (ICU
+  break iterators, `AttributedString`, Compose text) are fine; third-party
+  libraries are not.
+- **No `innerHTML` in recipes**: framework snippets render real elements from
   `tokenize()` output. `toHtml` output is for string contexts (SSR templates,
   static site generators, Markdown pipelines).
 - **Presentation is CSS**: emit neutral markup (`<b>` or configurable
@@ -59,9 +63,11 @@ lacks, add it to the spec in the same commit.
 - For a task within one package, also follow that package's `README.md` API
   and keep its tests green: `pnpm --filter <name> build test typecheck`, or
   `cd python && pytest && mypy --strict smooth_reading`.
-- Any change to the algorithm touches `docs/SPEC.md`, `fixtures/`, `core`
-  and `python` together; all fixture tests in all ports must pass in the same
-  commit.
+- Any change to the algorithm touches `docs/SPEC.md`, `fixtures/` and all
+  four ports together; all fixture tests in all ports must pass in the same
+  commit. Port test commands: `pnpm --filter @smooth-reading/core test`,
+  `cd swift && swift test`, `cd android && ./gradlew test`,
+  `cd python && pytest`.
 - `AGENTS.md` is a verbatim copy of `CLAUDE.md` (for Codex and other agents).
   After editing `CLAUDE.md`, re-copy it over `AGENTS.md` in the same commit.
 
@@ -75,11 +81,12 @@ lacks, add it to the spec in the same commit.
 
 ## CI/CD (GitHub Actions)
 
-- `ci.yml` — on push/PR: pnpm install (frozen lockfile), build, typecheck,
-  test for all JS packages; pytest + mypy for Python on 3.10 and latest.
-- Publishing is manual for now (`pnpm publish -r --access public`,
-  `python -m build && twine upload`). Versions are bumped together across all
-  packages; keep every package at the same version.
+- `ci.yml` — on push/PR: JS (pnpm frozen install, build, typecheck, test),
+  Swift (`swift test` on macOS), Android (`./gradlew test`), Python (pytest +
+  mypy on 3.10 and latest).
+- Publishing is manual for now (npm, SPM via git tag, Maven Central, PyPI).
+  Versions are bumped together across all ports; keep every package at the
+  same version and tag releases `vX.Y.Z`.
 - No secrets enter git history.
 
 ## Git Conventions
@@ -93,8 +100,10 @@ lacks, add it to the spec in the same commit.
 | scope | Applicable scenario |
 |-------|---------|
 | `core` | Changes within `packages/core/` |
-| `react` / `vue` / `svelte` / `dom` | Changes within that adapter package |
+| `swift` | Changes within `swift/` |
+| `android` | Changes within `android/` |
 | `python` | Changes within `python/` |
+| `recipes` | Changes within `docs/recipes/` |
 | `fixtures` | Changes within `fixtures/` |
 | `spec` | Changes to `docs/SPEC.md` |
 | `examples` | Changes within `examples/` |
@@ -107,7 +116,8 @@ Cross-package changes may combine scopes (`spec,core,python`).
 - The repository root is not the root of any single package; do not place
   package-specific source or config at the root.
 - Generated artifacts are never committed: `dist/`, `coverage/`,
-  `node_modules/`, `python/.venv/`, `__pycache__/`, `*.egg-info/`.
+  `node_modules/`, `python/.venv/`, `__pycache__/`, `*.egg-info/`,
+  `swift/.build/`, `android/build/`, `android/.gradle/`.
 - `docs/internal/` is gitignored on purpose; do not force-add it.
 - No personal information (names, emails) in README or other public-facing
   docs. Copyright holder is "Smooth Reading contributors".

@@ -119,19 +119,18 @@ Emphasis is purely presentational, so the core emits semantic-neutral markup and
 
 Consumers who prefer no bold may set `tag: "span"`, `className: "sr-fixation"` and style it themselves (colour, weight 600, underline…).
 
-## 6. Framework adapters
+## 6. First-party ports
 
-Every adapter is a thin wrapper around `tokenize` and renders **real elements** (no `innerHTML`), so it is SSR-safe and XSS-safe.
+The project ships one package per platform runtime. Framework adapters (React, Vue, Svelte, …) are deliberately **not** published: they are 10–20 line wrappers around `tokenize` and live as copy-paste recipes in `docs/recipes/`.
 
-| Package | Export | Notes |
+| Package | Runtime | Export |
 | --- | --- | --- |
-| `@smooth-reading/react` | `<SmoothText>` component, `useSmoothTokens(text, opts)` hook, `<SmoothProvider>` for defaults | Works with React 18/19, Next.js App Router (no client-only APIs). |
-| `@smooth-reading/vue` | `<SmoothText>` component, `vSmooth` directive, `useSmoothTokens` composable | Vue 3.3+. |
-| `@smooth-reading/svelte` | `<SmoothText>` component, `smooth` action | Svelte 5 runes. |
-| `@smooth-reading/dom` | re-export of `applyToElement` plus a `<smooth-reading>` custom element | Framework-free; usable from Angular, HTMX, plain HTML. |
-| `smooth-reading` (PyPI) | `tokenize`, `to_html`, CLI `smooth-reading` | Python 3.10+, regex tokenizer. |
+| `@smooth-reading/core` (npm) | Web, Node, Bun, Deno, React Native | `tokenize`, `toHtml`, `applyToElement`, `createTransformStream`, `styles.css` |
+| `SmoothReading` (Swift Package) | iOS 17+, macOS 14+ | `tokenize`, `attributedString(_:options:)` → `AttributedString` (SwiftUI `Text` and UIKit/AppKit), `html(_:options:)` |
+| `io.smoothreading:smooth-reading` (Maven) | Android (minSdk 26), JVM | `tokenize`, `annotatedString()` for Compose, `spanned()` for `TextView`, `toHtml()` |
+| `smooth-reading` (PyPI) | Python 3.10+ | `tokenize`, `to_html`, CLI |
 
-Each adapter package README shows a five-line usage example and lists peer dependencies.
+Every port passes `fixtures/common/*`. Ports whose runtime has a Unicode word-break engine (ICU on Apple platforms via `NSLinguisticTagger`/`String.enumerateSubstrings(.byWords)`, `android.icu.text.BreakIterator` on Android, `Intl.Segmenter` in JS) should use it and also pass `fixtures/segmenter/*`; Python uses the regex fallback only.
 
 ## 7. Fixtures
 
