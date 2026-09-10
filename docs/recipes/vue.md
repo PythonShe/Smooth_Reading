@@ -1,0 +1,39 @@
+# Vue 3
+
+```vue
+<script setup lang="ts">
+import { computed } from "vue";
+import { tokenize, type SmoothOptions } from "@smooth-reading/core";
+import "@smooth-reading/core/styles.css";
+
+const props = withDefaults(defineProps<SmoothOptions & { text: string; tag?: string }>(), { tag: "span" });
+const tokens = computed(() => tokenize(props.text, props));
+</script>
+
+<template>
+  <component :is="tag">
+    <template v-for="(t, i) in tokens" :key="i">
+      <span v-if="t.type === 'word'">
+        <span class="sr-fixation">{{ t.fixationText }}</span><span class="sr-rest">{{ t.restText }}</span>
+      </span>
+      <template v-else>{{ t.text }}</template>
+    </template>
+  </component>
+</template>
+```
+
+Usage: `<SmoothText text="Smooth reading works." :fixation="3" tag="p" />`
+
+Directive for existing DOM (client only):
+
+```ts
+import { applyToElement } from "@smooth-reading/core";
+import type { Directive } from "vue";
+
+let restore: (() => void) | undefined;
+export const vSmooth: Directive<HTMLElement, SmoothOptions | undefined> = {
+  mounted(el, { value }) { restore = applyToElement(el, value); },
+  updated(el, { value }) { restore?.(); restore = applyToElement(el, value); },
+  unmounted() { restore?.(); },
+};
+```
