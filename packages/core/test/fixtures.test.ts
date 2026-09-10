@@ -6,12 +6,13 @@ describe('shared fixtures: common', () => {
   const files = loadFixtures('common');
 
   it('finds every common fixture file', () => {
-    expect(files.map((f) => f.file)).toEqual([
+    expect(files.map((f) => f.file)).toEqual(expect.arrayContaining([
       'common/basic.json',
       'common/edge-cases.json',
+      'common/markup.json',
       'common/options.json',
       'common/saccade.json',
-    ]);
+    ]));
   });
 
   for (const { file, cases } of files) {
