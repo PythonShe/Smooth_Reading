@@ -18,6 +18,7 @@ public struct SmoothOptions: Sendable {
     /// returned value is clamped to `0...graphemes`.
     public var fixationLength: (@Sendable (String, Int, SmoothOptions) -> Int)?
 
+    /// Creates options; every parameter defaults to the spec default.
     public init(
         fixation: Int = 3,
         saccade: Int = 1,
@@ -58,7 +59,9 @@ public struct HtmlOptions: Sendable {
     public var restClassName: String?
     /// When `true` (default) text inside `<...>` is passed through verbatim.
     public var ignoreHtmlTags: Bool
-    /// Element names whose contents are never emphasised.
+    /// Element names (case-insensitive) whose contents are never emphasised.
+    /// ``tag`` and ``restTag`` are always skipped as well, so output is never
+    /// wrapped twice. Only consulted when ``ignoreHtmlTags`` is `true`.
     public var skipTags: Set<String>
 
     /// `["code", "pre", "script", "style", "kbd", "samp", "textarea"]`.
@@ -66,6 +69,7 @@ public struct HtmlOptions: Sendable {
         "code", "pre", "script", "style", "kbd", "samp", "textarea",
     ]
 
+    /// Creates HTML options; every parameter defaults to the spec default.
     public init(
         options: SmoothOptions = .default,
         tag: String = "b",

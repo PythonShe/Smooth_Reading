@@ -42,29 +42,39 @@ final class FixtureTests: XCTestCase {
         try run(suite: "common")
     }
 
+    /// The `common` fixtures must also pass through the locale-aware
+    /// (`CFStringTokenizer`) path, which is only used when a locale is set.
+    func testCommonFixturesThroughTheLocaleAwareTokenizer() throws {
+        try run(suite: "common", forcingLocale: Locale(identifier: "en_US"))
+    }
+
     func testSegmenterFixtures() throws {
         try run(suite: "segmenter")
     }
 
-    private func run(suite: String) throws {
-        let directory = Self.fixturesRoot.appendingPathComponent(suite)
+    /// Loads every `.json` case file of a suite. Missing or empty suites are
+    /// failures, never skips: every port must run all of them.
+    private static func cases(in suite: String) throws -> [(file: String, cases: [FixtureCase])] {
+        let directory = fixturesRoot.appendingPathComponent(suite)
         var isDirectory: ObjCBool = false
         guard FileManager.default.fileExists(atPath: directory.path, isDirectory: &isDirectory),
             isDirectory.boolValue
         else {
-            throw XCTSkip("fixtures/\(suite) does not exist yet")
+            XCTFail("fixtures/\(suite) does not exist at \(directory.path)")
+            return []
         }
         let files = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
             .filter { $0.pathExtension == "json" }
             .sorted { $0.lastPathComponent < $1.lastPathComponent }
-        guard !files.isEmpty else {
-            throw XCTSkip("fixtures/\(suite) contains no .json files yet")
+        XCTAssertFalse(files.isEmpty, "fixtures/\(suite) contains no .json files")
+        return try files.map { file in
+            (file.lastPathComponent, try JSONDecoder().decode([FixtureCase].self, from: Data(contentsOf: file)))
         }
+    }
 
+    private func run(suite: String, forcingLocale: Locale? = nil) throws {
         var count = 0
-        for file in files {
-            let data = try Data(contentsOf: file)
-            let cases = try JSONDecoder().decode([FixtureCase].self, from: data)
+        for (file, cases) in try Self.cases(in: suite) {
             for fixture in cases {
                 var options = SmoothOptions()
                 var htmlOptions = HtmlOptions()
@@ -81,14 +91,13 @@ final class FixtureTests: XCTestCase {
                     if let value = json.ignoreHtmlTags { htmlOptions.ignoreHtmlTags = value }
                     if let value = json.skipTags { htmlOptions.skipTags = Set(value) }
                 }
+                if let forcingLocale { options.locale = forcingLocale }
                 htmlOptions.options = options
                 let actual = SmoothReading.html(fixture.input, options: htmlOptions)
-                XCTAssertEqual(
-                    actual, fixture.html,
-                    "\(suite)/\(file.lastPathComponent): \(fixture.name)")
+                XCTAssertEqual(actual, fixture.html, "\(suite)/\(file): \(fixture.name)")
                 count += 1
             }
         }
-        XCTAssertGreaterThan(count, 0)
+        XCTAssertGreaterThan(count, 0, "fixtures/\(suite) ran no cases")
     }
 }

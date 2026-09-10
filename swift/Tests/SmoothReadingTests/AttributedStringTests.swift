@@ -34,7 +34,7 @@ final class AttributedStringTests: XCTestCase {
     func testCustomContainers() {
         var fixation = AttributeContainer()
         fixation.inlinePresentationIntent = .emphasized
-        let attributed = SmoothReading.attributedString("to", fixation: fixation)
+        let attributed = SmoothReading.attributedString("to", fixationAttributes: fixation)
         let first = attributed.runs.first
         XCTAssertEqual(first?.inlinePresentationIntent, .emphasized)
     }
@@ -80,6 +80,36 @@ final class AttributedStringTests: XCTestCase {
             "to", fixationAttributes: [.underlineStyle: 1], restAttributes: [:])
         XCTAssertNotNil(custom.attribute(.underlineStyle, at: 0, effectiveRange: nil))
         XCTAssertNil(custom.attribute(.underlineStyle, at: 1, effectiveRange: nil))
+    }
+
+    func testBoldFontOfSystemFontHasBoldTrait() {
+        let bold = SmoothReading.boldFont(from: PlatformFont.systemFont(ofSize: 15))
+        XCTAssertEqual(bold.pointSize, 15)
+        #if canImport(UIKit)
+        XCTAssertTrue(bold.fontDescriptor.symbolicTraits.contains(.traitBold))
+        #else
+        XCTAssertTrue(bold.fontDescriptor.symbolicTraits.contains(.bold))
+        #endif
+    }
+
+    /// Families with a single face (no bold) must still yield a usable font at
+    /// the same size instead of crashing or returning nil.
+    func testBoldFontFallsBackGracefullyWhenTheFamilyHasNoBoldFace() {
+        for name in ["Zapfino", "Herculanum", "Papyrus", "Chalkduster"] {
+            guard let font = PlatformFont(name: name, size: 13) else { continue }
+            let bold = SmoothReading.boldFont(from: font)
+            XCTAssertEqual(bold.pointSize, 13, name)
+            XCTAssertFalse(bold.familyName?.isEmpty ?? true, name)
+        }
+        // And a font that does not exist at all resolves to *something* bold-ish.
+        let attributed = SmoothReading.nsAttributedString("Smooth", font: PlatformFont(name: "Zapfino", size: 13))
+        XCTAssertEqual(attributed.string, "Smooth")
+        XCTAssertNotNil(attributed.attribute(.font, at: 0, effectiveRange: nil))
+    }
+
+    func testRunsConcatenateToTheInput() {
+        let input = "Smooth reading works, don't stop!"
+        XCTAssertEqual(SmoothReading.runs(input, options: .default).map(\.text).joined(), input)
     }
     #endif
 }

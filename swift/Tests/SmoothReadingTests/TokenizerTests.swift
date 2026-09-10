@@ -70,4 +70,49 @@ final class TokenizerTests: XCTestCase {
     func testThaiIsSegmented() {
         XCTAssertEqual(words("สวัสดีครับ").count, 2)
     }
+
+    /// The two ICU paths — `enumerateSubstrings(.byWords)` without a locale and
+    /// `CFStringTokenizer` with one — must produce identical word ranges for
+    /// Latin-like text, including every `fixtures/common` input.
+    func testBothTokenizerPathsAgree() throws {
+        var inputs = [
+            "Smooth reading works.", "don't stop, it’s well-known!", "...Hello, world!!!",
+            "Привет мир", "Καλημέρα κόσμε", "nai\u{0308}ve reading", "hello 👋 world",
+            "Read 42 books in 2024.", "  \n\t ", "", "<p>Smooth <em>reading</em></p>",
+            "Tom &amp; Jerry", "a e i o u", "مرحبا بالعالم",
+        ]
+        inputs += try Self.commonFixtureInputs()
+        for input in inputs {
+            let range = input.startIndex..<input.endIndex
+            let plain = Tokenizer.wordRanges(in: input, range: range, locale: nil).map { input[$0] }
+            let localized = Tokenizer.wordRanges(in: input, range: range, locale: Locale(identifier: "en_US"))
+                .map { input[$0] }
+            XCTAssertEqual(plain, localized, input.debugDescription)
+        }
+    }
+
+    /// Sub-ranges (as the HTML renderer uses between tags) agree as well.
+    func testBothTokenizerPathsAgreeOnSubranges() {
+        let input = "<p>Smooth reading</p> don't-stop"
+        let start = input.index(input.startIndex, offsetBy: 3)
+        let end = input.index(input.startIndex, offsetBy: 17)
+        let plain = Tokenizer.wordRanges(in: input, range: start..<end, locale: nil).map { input[$0] }
+        let localized = Tokenizer.wordRanges(in: input, range: start..<end, locale: Locale(identifier: "en"))
+            .map { input[$0] }
+        XCTAssertEqual(plain, ["Smooth", "reading"])
+        XCTAssertEqual(plain, localized)
+    }
+
+    private struct FixtureInput: Decodable { var input: String }
+
+    private static func commonFixtureInputs() throws -> [String] {
+        let directory = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent().appendingPathComponent("fixtures/common")
+        let files = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
+            .filter { $0.pathExtension == "json" }
+        XCTAssertFalse(files.isEmpty)
+        return try files.flatMap { try JSONDecoder().decode([FixtureInput].self, from: Data(contentsOf: $0)) }
+            .map(\.input)
+    }
 }

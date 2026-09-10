@@ -48,13 +48,18 @@ enum Tokenizer {
         return ranges
     }
 
-    /// A segment is word-like when it contains a letter, digit or combining mark
-    /// — the same definition the spec's regex fallback uses.
+    /// A segment is word-like when it contains a letter, number or mark
+    /// (`\p{L}`, `\p{N}`, `\p{M}`) — the classes the spec's regex fallback uses.
     private static func isWordLike(_ token: Substring) -> Bool {
         token.unicodeScalars.contains { scalar in
-            scalar.properties.isAlphabetic || scalar.properties.numericType != nil
-                || CharacterSet.nonBaseCharacters.contains(scalar)
-                || CharacterSet.decimalDigits.contains(scalar)
+            switch scalar.properties.generalCategory {
+            case .uppercaseLetter, .lowercaseLetter, .titlecaseLetter, .modifierLetter, .otherLetter,
+                .decimalNumber, .letterNumber, .otherNumber,
+                .nonspacingMark, .spacingMark, .enclosingMark:
+                return true
+            default:
+                return false
+            }
         }
     }
 }

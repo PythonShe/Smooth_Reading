@@ -5,11 +5,19 @@ extension SmoothReading {
     /// Render `text` as HTML with each fixation wrapped in ``HtmlOptions/tag``
     /// (default `<b>`). Mirrors `toHtml` in `docs/SPEC.md` §4.
     ///
-    /// When ``HtmlOptions/ignoreHtmlTags`` is `true` (the default) existing tags
-    /// are passed through verbatim and the contents of ``HtmlOptions/skipTags``
-    /// elements are left untouched. Emitted text is escaped (`&`, `<`, `>`, `"`).
+    /// When ``HtmlOptions/ignoreHtmlTags`` is `true` (the default):
+    /// - existing tags are passed through verbatim (a `<` only starts markup
+    ///   when followed by a letter, `/`, `!` or `?` and closed by a `>`);
+    /// - existing character references such as `&amp;` or `&#x27;` are passed
+    ///   through verbatim and act as word boundaries; a bare `&` is escaped;
+    /// - the contents of ``HtmlOptions/skipTags`` elements — plus the emphasis
+    ///   `tag` and `restTag` themselves — are left untouched.
+    ///
+    /// When it is `false` the whole input is plain text and every `&`, `<`, `>`
+    /// and `"` is escaped.
     public static func html(_ text: String, options: HtmlOptions = HtmlOptions()) -> String {
         var out = ""
+        out.reserveCapacity(text.utf8.count + text.utf8.count / 4)
         var wordIndex = 0
 
         guard options.ignoreHtmlTags else {
@@ -20,7 +28,7 @@ extension SmoothReading {
 
         // The emphasis tags themselves are always skipped, so re-running the
         // renderer over its own output never nests a second fixation inside one
-        // it already produced (spec §4, "does not double-wrap").
+        // it already produced (spec §4).
         var skipTags = Set(options.skipTags.map { $0.lowercased() })
         skipTags.insert(options.tag.lowercased())
         if let restTag = options.restTag { skipTags.insert(restTag.lowercased()) }
@@ -29,6 +37,9 @@ extension SmoothReading {
         var pendingStart = text.startIndex
         var skipTag: String?
         var skipDepth = 0
+        // Once a search for `>` fails, no later `<` can start a tag either;
+        // remembering that keeps a text full of bare `<` linear.
+        var noClosingBracketAhead = false
 
         func flushText(upTo end: String.Index) {
             guard pendingStart < end else { return }
@@ -41,26 +52,42 @@ extension SmoothReading {
         }
 
         while cursor < text.endIndex {
-            guard text[cursor] == "<", let close = text[cursor...].firstIndex(of: ">") else {
-                cursor = text.index(after: cursor)
-                continue
-            }
-            flushText(upTo: cursor)
-            let tagEnd = text.index(after: close)
-            let raw = text[cursor..<tagEnd]
-            out += raw  // tags are always verbatim
-            let tag = parseTag(raw)
-            if let current = skipTag {
-                if tag.name == current, !tag.isSelfClosing {
-                    skipDepth += tag.isClosing ? -1 : 1
-                    if skipDepth <= 0 { skipTag = nil; skipDepth = 0 }
+            switch text[cursor] {
+            case "<" where !noClosingBracketAhead:
+                let next = text.index(after: cursor)
+                guard next < text.endIndex, startsMarkup(text[next]) else { break }
+                guard let close = text[next...].firstIndex(of: ">") else {
+                    noClosingBracketAhead = true
+                    break
                 }
-            } else if !tag.isClosing, !tag.isSelfClosing, skipTags.contains(tag.name) {
-                skipTag = tag.name
-                skipDepth = 1
+                flushText(upTo: cursor)
+                let tagEnd = text.index(after: close)
+                let raw = text[cursor..<tagEnd]
+                out += raw  // tags are always verbatim
+                let tag = parseTag(raw)
+                if let current = skipTag {
+                    if tag.name == current, !tag.isSelfClosing {
+                        skipDepth += tag.isClosing ? -1 : 1
+                        if skipDepth <= 0 { skipTag = nil; skipDepth = 0 }
+                    }
+                } else if !tag.isClosing, !tag.isSelfClosing, skipTags.contains(tag.name) {
+                    skipTag = tag.name
+                    skipDepth = 1
+                }
+                cursor = tagEnd
+                pendingStart = tagEnd
+                continue
+            case "&":
+                guard let referenceEnd = characterReferenceEnd(in: text, from: cursor) else { break }
+                flushText(upTo: cursor)
+                out += text[cursor..<referenceEnd]  // existing references are verbatim
+                cursor = referenceEnd
+                pendingStart = referenceEnd
+                continue
+            default:
+                break
             }
-            cursor = tagEnd
-            pendingStart = tagEnd
+            cursor = text.index(after: cursor)
         }
         flushText(upTo: text.endIndex)
         return out
@@ -78,6 +105,7 @@ extension SmoothReading {
             case let .separator(text):
                 out += escapeHtml(text)
             case let .word(word, fixation, fixationText, restText):
+                // A word without a fixation is plain text, never wrapped in `restTag`.
                 guard fixation > 0 else {
                     out += escapeHtml(word)
                     continue
@@ -106,7 +134,7 @@ extension SmoothReading {
     /// Escapes the four characters the spec requires: `&`, `<`, `>`, `"`.
     static func escapeHtml(_ text: String) -> String {
         var out = ""
-        out.reserveCapacity(text.count)
+        out.reserveCapacity(text.utf8.count)
         for character in text {
             switch character {
             case "&": out += "&amp;"
@@ -117,6 +145,59 @@ extension SmoothReading {
             }
         }
         return out
+    }
+
+    // MARK: - Markup scanning
+
+    /// Spec §4: a `<` only starts markup when followed by a letter, `/`, `!` or `?`.
+    private static func startsMarkup(_ character: Character) -> Bool {
+        guard let byte = character.asciiValue else { return false }
+        return isAsciiLetter(byte) || byte == UInt8(ascii: "/") || byte == UInt8(ascii: "!")
+            || byte == UInt8(ascii: "?")
+    }
+
+    /// If `text[start]` (an `&`) begins a character reference —
+    /// `&name;`, `&#123;` or `&#x1F;` — returns the index just past its `;`.
+    ///
+    /// Works on `Character`s, so the result is always a grapheme boundary and
+    /// safe to slice with.
+    static func characterReferenceEnd(in text: String, from start: String.Index) -> String.Index? {
+        var index = text.index(after: start)
+        guard index < text.endIndex else { return nil }
+        let accepts: (UInt8) -> Bool
+        if text[index] == "#" {
+            index = text.index(after: index)
+            guard index < text.endIndex else { return nil }
+            if text[index] == "x" || text[index] == "X" {
+                index = text.index(after: index)
+                accepts = isAsciiHexDigit
+            } else {
+                accepts = isAsciiDigit
+            }
+        } else {
+            guard let byte = text[index].asciiValue, isAsciiLetter(byte) else { return nil }
+            accepts = { isAsciiLetter($0) || isAsciiDigit($0) }
+        }
+        let bodyStart = index
+        while index < text.endIndex, let byte = text[index].asciiValue, accepts(byte) {
+            index = text.index(after: index)
+        }
+        guard index > bodyStart, index < text.endIndex, text[index] == ";" else { return nil }
+        return text.index(after: index)
+    }
+
+    private static func isAsciiLetter(_ byte: UInt8) -> Bool {
+        let lower = byte | 0x20
+        return lower >= UInt8(ascii: "a") && lower <= UInt8(ascii: "z")
+    }
+
+    private static func isAsciiDigit(_ byte: UInt8) -> Bool {
+        byte >= UInt8(ascii: "0") && byte <= UInt8(ascii: "9")
+    }
+
+    private static func isAsciiHexDigit(_ byte: UInt8) -> Bool {
+        let lower = byte | 0x20
+        return isAsciiDigit(byte) || (lower >= UInt8(ascii: "a") && lower <= UInt8(ascii: "f"))
     }
 
     private static func parseTag(_ raw: Substring) -> (name: String, isClosing: Bool, isSelfClosing: Bool) {

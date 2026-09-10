@@ -10,6 +10,11 @@ identical output.
 - Zero dependencies — Foundation only (ICU word breaking, `AttributedString`).
 - Swift 6, strict concurrency: every public type is `Sendable`.
 - iOS 17+, macOS 14+, watchOS 10+, tvOS 17+, visionOS 1+.
+- UIKit/AppKit first: `NSAttributedString` with a real bold font is the primary
+  API; `AttributedString` for SwiftUI is a convenience over the same token walk.
+
+Every snippet below is compiled by
+`Tests/SmoothReadingTests/ReadmeSnippetTests.swift`.
 
 ## Install
 
@@ -36,24 +41,27 @@ dependency: `.package(path: "../smooth_reading/swift")`.
 ## UIKit
 
 `nsAttributedString(_:options:font:fixationAttributes:restAttributes:)` derives a
-real bold font from the base font, so `UILabel`, `UITextView` and friends render
-it without any bridging surprises.
+real bold font from the base font (`boldFont(from:)`, via the font descriptor's
+bold trait, falling back to a bold weight for families without a bold face), so
+`UILabel`, `UITextView` and friends render it without any bridging surprises.
 
 ```swift
 import UIKit
 import SmoothReading
 
+let article = "Smooth reading works."
+
 let label = UILabel()
 label.numberOfLines = 0
 label.font = .preferredFont(forTextStyle: .body)
 label.attributedText = SmoothReading.nsAttributedString(
-    "Smooth reading works.",
+    article,
     options: SmoothOptions(fixation: 3),
     font: label.font
 )
 
 // Or the one-line convenience, which reuses the view's current font:
-label.applySmoothReading("Smooth reading works.")
+label.applySmoothReading(article)
 
 let textView = UITextView()
 textView.applySmoothReading(article, options: SmoothOptions(fixation: 4, saccade: 2))
@@ -78,25 +86,31 @@ label.attributedText = SmoothReading.nsAttributedString(
 
 ## AppKit
 
+The same `nsAttributedString` API; the bold face comes from `NSFontManager`
+with a weight-trait fallback.
+
 ```swift
 import AppKit
 import SmoothReading
 
+let article = "Smooth reading works."
+
 let field = NSTextField(labelWithString: "")
-field.attributedStringValue = SmoothReading.nsAttributedString(
-    "Smooth reading works.",
-    font: field.font
-)
+field.attributedStringValue = SmoothReading.nsAttributedString(article, font: field.font)
 
 // Convenience setters on NSTextField and NSTextView:
-field.applySmoothReading("Smooth reading works.")
+field.applySmoothReading(article)
+
+let textView = NSTextView()
 textView.applySmoothReading(article, options: SmoothOptions(fixation: 4))
 ```
 
 ## SwiftUI
 
-`attributedString(_:options:fixation:rest:)` marks fixations with
-`.inlinePresentationIntent = .stronglyEmphasized`, which `Text` renders bold.
+`attributedString(_:options:fixationAttributes:restAttributes:)` marks fixations
+with `.inlinePresentationIntent = .stronglyEmphasized`, which `Text` renders
+bold. It walks the same tokens as `nsAttributedString`, so both APIs always
+emphasise exactly the same characters.
 
 ```swift
 import SwiftUI
@@ -115,14 +129,22 @@ struct ArticleView: View {
 Pass your own containers for a different look:
 
 ```swift
-var fixation = AttributeContainer()
-fixation.foregroundColor = .accentColor
-fixation.inlinePresentationIntent = .stronglyEmphasized
+struct TintedArticleView: View {
+    let article: String
 
-var rest = AttributeContainer()
-rest.foregroundColor = .secondary
+    var body: some View {
+        var fixation = AttributeContainer()
+        fixation.foregroundColor = .accentColor
+        fixation.inlinePresentationIntent = .stronglyEmphasized
 
-Text(SmoothReading.attributedString(article, fixation: fixation, rest: rest))
+        var rest = AttributeContainer()
+        rest.foregroundColor = .secondary
+
+        return Text(
+            SmoothReading.attributedString(article, fixationAttributes: fixation, restAttributes: rest)
+        )
+    }
+}
 ```
 
 ## HTML and tokens
@@ -134,11 +156,16 @@ SmoothReading.html("Smooth reading works.")
 SmoothReading.html(
     "Smooth reading",
     options: HtmlOptions(
+        options: SmoothOptions(fixation: 4),
         tag: "span", className: "sr-fixation",
         restTag: "span", restClassName: "sr-rest"
     )
 )
-// <span class="sr-fixation">Smo</span><span class="sr-rest">oth</span> …
+// <span class="sr-fixation">Smoo</span><span class="sr-rest">th</span> …
+
+// Existing markup and character references pass through untouched:
+SmoothReading.html("<p>Tom &amp; <code>Jerry</code></p>")
+// <p><b>To</b>m &amp; <code>Jerry</code></p>
 
 for token in SmoothReading.tokenize("Smooth reading") {
     switch token {
@@ -172,14 +199,16 @@ purely presentational, so the library only emits neutral markup.
 | `className` | `String?` | `nil` | Class attribute on the fixation tag. |
 | `restTag` | `String?` | `nil` | Tag wrapping the rest of the word; `nil` leaves it plain text. |
 | `restClassName` | `String?` | `nil` | Class attribute on the rest tag. |
-| `ignoreHtmlTags` | `Bool` | `true` | Pass existing `<…>` tags through verbatim instead of escaping them. |
-| `skipTags` | `Set<String>` | `code`, `pre`, `script`, `style`, `kbd`, `samp`, `textarea` | Elements whose text is never emphasised. `tag` and `restTag` are always skipped as well, so output is never wrapped twice. |
+| `ignoreHtmlTags` | `Bool` | `true` | Pass existing tags and character references (`&amp;`, `&#x27;`, …) through verbatim; references act as word boundaries and only a bare `&` is escaped. A `<` only starts a tag when followed by a letter, `/`, `!` or `?`. With `false` the whole input is plain text and every `&`, `<`, `>`, `"` is escaped. |
+| `skipTags` | `Set<String>` | `code`, `pre`, `script`, `style`, `kbd`, `samp`, `textarea` | Elements (case-insensitive) whose text is never emphasised. `tag` and `restTag` are always skipped as well, so output is never wrapped twice. A word that gets no fixation is plain text, never wrapped in `restTag`. |
 
 ## Word breaking
 
-Words come from ICU via `String.enumerateSubstrings(in:options: .byWords)`:
-apostrophes join (`don't` is one word), hyphens split (`well-known` is two), and
-CJK/Thai get dictionary-based breaks. Grapheme clusters are counted natively
+Words come from ICU via `String.enumerateSubstrings(in:options: .byWords)`, or
+`CFStringTokenizer` when a `locale` is set (the only Foundation word breaker that
+takes one): apostrophes join (`don't` is one word), hyphens split (`well-known`
+is two), and CJK/Thai get dictionary-based breaks. The two paths are tested to
+agree on every `fixtures/common` input. Grapheme clusters are counted natively
 (`String.count`), so combining marks are never split from their base and a
 single-scalar count is never used.
 
