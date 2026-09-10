@@ -97,4 +97,4 @@ package metadata.
 - Generated artifacts (`dist/`, `.build/`, `build/`, `.venv/`, `node_modules/`)
   are never committed.
 - Versions are bumped together across all ports and releases are tagged
-  `vX.Y.Z`.
+  `vX.Y.Z`. Push the tag, then run `gh workflow run release.yml -f tag=vX.Y.Z`.

@@ -115,10 +115,12 @@ lacks, add it to the spec in the same commit.
 - `ci.yml` — manual trigger only (`workflow_dispatch`; run via the Actions tab or `gh workflow run ci.yml`): JS on Node 24 (pnpm frozen install, build, typecheck, test),
   Swift (`swift test` on macOS), Android (`./gradlew test`), Python (pytest +
   mypy on 3.10 and latest).
-- Publishing is manual for now (npm, SPM via git tag, Maven Central, PyPI).
-  Versions are bumped together across all ports; keep every package at the
-  same version and tag releases `vX.Y.Z`.
-- No secrets enter git history.
+- `release.yml` — manual trigger with a `tag` input
+  (`gh workflow run release.yml -f tag=vX.Y.Z`): verifies every port carries
+  the tagged version, then publishes npm, PyPI and Maven Central and creates
+  the GitHub release SwiftPM resolves from. Versions are bumped together
+  across all ports; keep every package at the same version and tag releases
+  `vX.Y.Z` (Python spells prereleases per PEP 440, e.g. `0.1.0rc1`).
 
 ## Git Conventions
 

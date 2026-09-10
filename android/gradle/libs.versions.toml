@@ -17,6 +17,8 @@ minSdk = "24"
 # JVM target above 21, so the toolchain is pinned to 21 even though the
 # Gradle daemon itself may run on a newer local JDK.
 jdk = "21"
+# Maven Central publishing plugin, build-time only.
+mavenPublish = "0.37.0"
 
 [libraries]
 androidx-compose-bom = { module = "androidx.compose:compose-bom", version.ref = "composeBom" }
@@ -32,3 +34,4 @@ junit4 = { module = "junit:junit", version.ref = "junit4" }
 [plugins]
 android-library = { id = "com.android.library", version.ref = "agp" }
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+maven-publish = { id = "com.vanniktech.maven.publish", version.ref = "mavenPublish" }

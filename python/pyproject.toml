@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "smooth-reading"
-version = "0.1.0"
+version = "0.1.0rc1"
 description = "Emphasise the leading letters of every word to create artificial fixation points."
 readme = "README.md"
 requires-python = ">=3.10"

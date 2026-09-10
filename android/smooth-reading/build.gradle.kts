@@ -1,6 +1,8 @@
+import com.vanniktech.maven.publish.AndroidSingleVariantLibrary
+
 plugins {
     alias(libs.plugins.android.library)
-    `maven-publish`
+    alias(libs.plugins.maven.publish)
 }
 
 android {
@@ -15,12 +17,6 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
-        }
-    }
-
-    publishing {
-        singleVariant("release") {
-            withSourcesJar()
         }
     }
 
@@ -66,35 +62,34 @@ dependencies {
     testImplementation(libs.androidx.compose.ui.text)
 }
 
-publishing {
-    publications {
-        register<MavenPublication>("release") {
-            afterEvaluate { from(components["release"]) }
-            artifactId = "smooth-reading"
-            pom {
-                name.set("Smooth Reading")
-                description.set(
-                    "Guided fixation reading for Android: Compose AnnotatedString, Spanned for TextView, and HTML."
-                )
-                url.set("https://github.com/PythonShe/Smooth_Reading")
-                licenses {
-                    license {
-                        name.set("The Apache License, Version 2.0")
-                        url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
-                    }
-                }
-                developers {
-                    developer {
-                        id.set("smooth-reading")
-                        name.set("Smooth Reading contributors")
-                    }
-                }
-                scm {
-                    url.set("https://github.com/PythonShe/Smooth_Reading")
-                    connection.set("scm:git:https://github.com/PythonShe/Smooth_Reading.git")
-                    developerConnection.set("scm:git:ssh://git@github.com/PythonShe/Smooth_Reading.git")
+// Maven Central via the Sonatype Central Portal.
+mavenPublishing {
+    publishToMavenCentral()
+    if (providers.gradleProperty("signingInMemoryKey").isPresent) signAllPublications()
+    coordinates(project.group.toString(), "smooth-reading", project.version.toString())
+    configure(AndroidSingleVariantLibrary(variant = "release", sourcesJar = true, publishJavadocJar = true))
+        pom {
+            name.set("Smooth Reading")
+            description.set(
+                "Guided fixation reading for Android: Compose AnnotatedString, Spanned for TextView, and HTML."
+            )
+            url.set("https://github.com/PythonShe/Smooth_Reading")
+            licenses {
+                license {
+                    name.set("The Apache License, Version 2.0")
+                    url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
                 }
             }
+            developers {
+                developer {
+                    id.set("smooth-reading")
+                    name.set("Smooth Reading contributors")
+                }
+            }
+            scm {
+                url.set("https://github.com/PythonShe/Smooth_Reading")
+                connection.set("scm:git:https://github.com/PythonShe/Smooth_Reading.git")
+                developerConnection.set("scm:git:ssh://git@github.com/PythonShe/Smooth_Reading.git")
+            }
         }
-    }
 }

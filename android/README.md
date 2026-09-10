@@ -20,12 +20,12 @@ Every code snippet below is verified by unit tests in `ReadmeSnippetsTest`.
 ```kotlin
 // build.gradle.kts — Android app or library
 dependencies {
-    implementation("io.smoothreading:smooth-reading:0.1.0")
+    implementation("io.smoothreading:smooth-reading:0.1.0-rc.1")
 }
 
 // build.gradle.kts — Plain Kotlin/JVM project (SSR, desktop, CLI)
 dependencies {
-    implementation("io.smoothreading:smooth-reading-core:0.1.0")
+    implementation("io.smoothreading:smooth-reading-core:0.1.0-rc.1")
 }
 ```
 

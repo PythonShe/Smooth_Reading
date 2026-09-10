@@ -1,10 +1,12 @@
+import com.vanniktech.maven.publish.JavadocJar
+import com.vanniktech.maven.publish.KotlinJvm
 import org.gradle.api.attributes.java.TargetJvmVersion
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     alias(libs.plugins.kotlin.jvm)
-    `maven-publish`
+    alias(libs.plugins.maven.publish)
 }
 
 kotlin {
@@ -20,8 +22,6 @@ kotlin {
 java {
     sourceCompatibility = JavaVersion.VERSION_11
     targetCompatibility = JavaVersion.VERSION_11
-    withSourcesJar()
-    withJavadocJar()
 }
 
 // Zero runtime dependencies (CLAUDE.md "Stack Policy"). Everything below is
@@ -62,35 +62,34 @@ tasks.test {
     systemProperty("smoothreading.fixtures", rootProject.projectDir.parentFile.resolve("fixtures").absolutePath)
 }
 
-publishing {
-    publications {
-        create<MavenPublication>("maven") {
-            from(components["java"])
-            artifactId = "smooth-reading-core"
-            pom {
-                name.set("Smooth Reading Core")
-                description.set(
-                    "Guided fixation reading for the JVM: tokenizer, fixation algorithm and HTML renderer."
-                )
-                url.set("https://github.com/PythonShe/Smooth_Reading")
-                licenses {
-                    license {
-                        name.set("The Apache License, Version 2.0")
-                        url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
-                    }
-                }
-                developers {
-                    developer {
-                        id.set("smooth-reading")
-                        name.set("Smooth Reading contributors")
-                    }
-                }
-                scm {
-                    url.set("https://github.com/PythonShe/Smooth_Reading")
-                    connection.set("scm:git:https://github.com/PythonShe/Smooth_Reading.git")
-                    developerConnection.set("scm:git:ssh://git@github.com/PythonShe/Smooth_Reading.git")
+// Maven Central via the Sonatype Central Portal.
+mavenPublishing {
+    publishToMavenCentral()
+    if (providers.gradleProperty("signingInMemoryKey").isPresent) signAllPublications()
+    coordinates(project.group.toString(), "smooth-reading-core", project.version.toString())
+    configure(KotlinJvm(javadocJar = JavadocJar.Javadoc(), sourcesJar = true))
+        pom {
+            name.set("Smooth Reading Core")
+            description.set(
+                "Guided fixation reading for the JVM: tokenizer, fixation algorithm and HTML renderer."
+            )
+            url.set("https://github.com/PythonShe/Smooth_Reading")
+            licenses {
+                license {
+                    name.set("The Apache License, Version 2.0")
+                    url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
                 }
             }
+            developers {
+                developer {
+                    id.set("smooth-reading")
+                    name.set("Smooth Reading contributors")
+                }
+            }
+            scm {
+                url.set("https://github.com/PythonShe/Smooth_Reading")
+                connection.set("scm:git:https://github.com/PythonShe/Smooth_Reading.git")
+                developerConnection.set("scm:git:ssh://git@github.com/PythonShe/Smooth_Reading.git")
+            }
         }
-    }
 }

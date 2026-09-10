@@ -3,7 +3,11 @@
 All notable changes to this project are documented here. Versions are bumped
 together across all four ports and releases are tagged `vX.Y.Z`.
 
-## 0.1.0 — unreleased
+## 0.1.0-rc.1 — 2026-09-10
+
+Release candidate: the first published build of every port, for integration
+testing ahead of 0.1.0. npm publishes under the `next` dist-tag, PyPI as
+`0.1.0rc1`, Maven Central as `0.1.0-rc.1`, SwiftPM from the `v0.1.0-rc.1` tag.
 
 Initial release of the guided fixation reading algorithm specified in
 `docs/SPEC.md`, with one first-party port per platform runtime and identical
