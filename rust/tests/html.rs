@@ -443,3 +443,18 @@ fn non_ascii_text_around_markup() {
         "<p><b>我喜欢</b>阅读</p> <em><b>naï</b>ve</em>"
     );
 }
+
+#[test]
+fn tag_names_fold_case_with_full_unicode_like_the_other_ports() {
+    let html = HtmlOptions::new().skip_tags(["codé"]);
+    assert_eq!(
+        to_html("a <CODÉ>b</CODÉ> c", &Options::default(), &html),
+        "<b>a</b> <CODÉ>b</CODÉ> <b>c</b>"
+    );
+    // The implicit no-nested-emphasis rule folds the same way.
+    let html = HtmlOptions::new().tag("codé");
+    assert_eq!(
+        to_html("a <CODÉ>b</CODÉ> c", &Options::default(), &html),
+        "<codé>a</codé> <CODÉ>b</CODÉ> <codé>c</codé>"
+    );
+}

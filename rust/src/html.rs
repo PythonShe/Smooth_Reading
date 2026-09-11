@@ -261,7 +261,9 @@ fn tag_name(raw: &str) -> Option<(bool, String)> {
     let end = body
         .find(|c: char| c.is_whitespace() || c == '/' || c == '>')
         .unwrap_or(body.len());
-    Some((closing, body[..end].to_ascii_lowercase()))
+    // Full Unicode lower-casing, like the Python and TypeScript ports (and the
+    // skip list above), so `<CODÉ>` matches a `codé` skip tag.
+    Some((closing, body[..end].to_lowercase()))
 }
 
 /// `<br/>` and `<code / >` are self-closing (`/\s*>$`); the trailing `/` may
