@@ -1,0 +1,36 @@
+[package]
+name = "smooth-reading"
+version = "0.3.0"
+edition = "2024"
+rust-version = "1.85"
+description = "Emphasise the leading letters of every word to create artificial fixation points."
+license = "Apache-2.0"
+authors = ["The Smooth Reading contributors"]
+repository = "https://github.com/PythonShe/Smooth_Reading"
+homepage = "https://github.com/PythonShe/Smooth_Reading"
+documentation = "https://docs.rs/smooth-reading"
+readme = "README.md"
+keywords = ["text-processing", "accessibility", "reading", "typography", "unicode"]
+categories = ["text-processing", "accessibility", "internationalization", "command-line-utilities"]
+# The fixture suites read `../fixtures`, which lives in the monorepo and is not
+# part of the published package, so those two test files are left out of it.
+exclude = ["tests/fixtures.rs", "tests/languages.rs", "tests/support/"]
+
+[lib]
+name = "smooth_reading"
+
+[[bin]]
+name = "smooth-reading"
+path = "src/bin/smooth-reading.rs"
+
+[dependencies]
+
+[dev-dependencies]
+serde_json = "1.0.151"
+
+[lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
