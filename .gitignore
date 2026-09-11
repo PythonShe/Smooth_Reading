@@ -18,5 +18,7 @@ docs/internal/
 android/build/
 android/**/build/
 android/.gradle/
+rust/target/
+rust/Cargo.lock
 android/local.properties
 .kotlin/

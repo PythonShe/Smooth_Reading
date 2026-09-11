@@ -51,6 +51,7 @@ jobs:
           check python/smooth_reading/__init__.py "__version__ = \"$pyversion\""
           check dart/pubspec.yaml "version: $version"
           check dart/lib/src/version.dart "packageVersion = '$version'"
+          check rust/Cargo.toml "version = \"$version\""
           check CHANGELOG.md "## $version"
           exit $fail
 
@@ -161,6 +162,39 @@ jobs:
       - if: steps.check.outputs.publish == 'true'
         name: Publish
         run: dart pub publish --force
+
+  crates-io:
+    name: crates.io (smooth-reading)
+    needs: verify
+    runs-on: ubuntu-latest
+    env:
+      CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - if: env.CARGO_REGISTRY_TOKEN == ''
+        run: echo "::warning::CARGO_REGISTRY_TOKEN not set, skipping crates.io publish"
+      - if: env.CARGO_REGISTRY_TOKEN != ''
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag }}
+      - if: env.CARGO_REGISTRY_TOKEN != ''
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - if: env.CARGO_REGISTRY_TOKEN != ''
+        run: cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test
+      - if: env.CARGO_REGISTRY_TOKEN != ''
+        name: Publish
+        run: |
+          set -eu
+          version="${{ needs.verify.outputs.version }}"
+          if curl -fsS -A "smooth-reading-release (github actions)" \
+               "https://crates.io/api/v1/crates/smooth-reading/$version" >/dev/null 2>&1; then
+            echo "smooth-reading $version is already on crates.io, skipping"; exit 0
+          fi
+          cargo publish
 
   maven-central:
     name: Maven Central (io.github.pythonshe)

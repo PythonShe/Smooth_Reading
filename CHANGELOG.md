@@ -1,7 +1,38 @@
 # Changelog
 
 All notable changes to this project are documented here. Versions are bumped
-together across all five ports and releases are tagged `vX.Y.Z`.
+together across all six ports and releases are tagged `vX.Y.Z`.
+
+## 0.3.0 — 2026-09-11
+
+Adds a sixth first-party port for Rust. No algorithm changes: every port
+still produces byte-identical output on the shared fixture suite.
+
+### New port: `smooth-reading` (Rust, crates.io)
+
+- Std only, zero runtime dependencies, `#![forbid(unsafe_code)]`, edition
+  2024, MSRV 1.85 (the edition floor). Rust's standard library has no Unicode general-category
+  lookup, so the crate ships a generated code-point range table
+  (`rust/src/unicode_data.rs`, from the Unicode Character Database) and a
+  hand-written scanner that mirrors the Python port: the spec regex, the
+  no-space-script run rule and the UAX #29 grapheme approximation (Hangul
+  jamo composition, Indic conjunct linking, combining marks, ZWJ, CR+LF).
+- `tokenize` returns borrowed `Token<'a>` values (`Word` / `Separator`)
+  that slice the input without copying; `to_html`, `to_markdown`,
+  `fixation_length`, `escape_html`, a clamping `Options` builder and
+  `HtmlOptions`.
+- A `Segmenter` trait with the default `SpecSegmenter`, so an application can
+  plug in an ICU word breaker (for example `icu_segmenter`) for dictionary
+  based Chinese, Japanese and Thai breaks without touching the algorithm.
+- A `smooth-reading` command (`cargo install smooth-reading`) with the same
+  flags as the Python CLI.
+
+### Release engineering
+
+- `ci.yml` builds and tests the crate on the 1.85 floor and on stable (fmt,
+  clippy, doc, publish dry-run); `release.yml` verifies the crate version and
+  publishes to crates.io with the `CARGO_REGISTRY_TOKEN` secret, skipping
+  versions that already exist.
 
 ## 0.2.0 — 2026-09-10
 

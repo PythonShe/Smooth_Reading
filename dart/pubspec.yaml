@@ -4,7 +4,7 @@ description: >-
   eye has an artificial fixation point. Zero dependencies, pure Dart, works in
   Flutter (TextSpan), on the server and on the web. Same algorithm and
   identical output as the TypeScript, Swift, Kotlin and Python ports.
-version: 0.2.0
+version: 0.3.0
 repository: https://github.com/PythonShe/Smooth_Reading
 homepage: https://github.com/PythonShe/Smooth_Reading/tree/main/dart
 issue_tracker: https://github.com/PythonShe/Smooth_Reading/issues

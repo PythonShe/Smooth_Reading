@@ -19,10 +19,11 @@ The core fixation algorithm ([docs/SPEC.md](SPEC.md)) is intentionally script-ag
 | `io.github.pythonshe` (Android/JVM) | Android: `android.icu.text.BreakIterator` (`IcuWordSegmenter`).<br>Plain JVM: `SpecWordSegmenter` (spec-compliant scanner). | `BreakIterator.getCharacterInstance()` with post-pass for Hangul jamo composition and Indic conjunct linking (Unicode 15.1 GB9c). |
 | `smooth-reading` (Python) | High-performance scanner over `unicodedata.category` implementing spec rules; run rule for CJK/Thai. | Spec-compliant UAX #29 approximation (`smooth_reading.graphemes`). |
 | `smooth_reading` (Dart) | Spec regex via Dart's Unicode `RegExp` (`\p{L}`, `\p{N}`, `\p{M}`) with the same run rule as Python; a `Segmenter` interface lets Flutter apps plug in a platform ICU break iterator. | Spec-compliant UAX #29 approximation (same regex as the JS fallback). |
+| `smooth-reading` (Rust) | Spec scanner over a generated Unicode general-category table (std only, no `unsafe`) with the same run rule as Python; a `Segmenter` trait lets apps plug in an ICU break iterator such as `icu_segmenter`. | Spec-compliant UAX #29 approximation (same rules as the Python port). |
 
 **ICU dictionary breaking** — finding true lexical word boundaries in scripts without spaces (Chinese, Japanese, Thai, Lao, Khmer, Burmese) — is provided in the ICU-backed ports: `@smooth-reading/core` (via `Intl.Segmenter`), Swift, and Android (`IcuWordSegmenter`). 
 
-The pure regular expression / scanner implementations (Python, Dart, Android's `SpecWordSegmenter`, and the JS fallback) treat each continuous run of Han, Kana, Hangul, Thai, Lao, Khmer or Myanmar characters as a unified word, split from adjacent text of other scripts. This fallback is completely self-contained, predictable, and requires zero external C/ICU dependencies.
+The pure regular expression / scanner implementations (Python, Dart, Rust, Android's `SpecWordSegmenter`, and the JS fallback) treat each continuous run of Han, Kana, Hangul, Thai, Lao, Khmer or Myanmar characters as a unified word, split from adjacent text of other scripts. This fallback is completely self-contained, predictable, and requires zero external C/ICU dependencies.
 
 ---
 
@@ -33,26 +34,26 @@ Status definitions:
 - **ICU**: Full dictionary-based segmentation in ICU-backed ports; continuous run rule in regex/scanner implementations.
 - **Engine-dependent**: Underlying system ICU versions vary across operating systems; fixtures test inputs where engines agree.
 
-| Script | `@smooth-reading/core` | Swift | Android | Python | Dart | Status | Notes |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| Latin (incl. Vietnamese, Turkish `İ`/`ı`, German `ß`, compounds) | ICU / regex | ICU | ICU / regex | regex | regex | Identical | NFC and NFD Vietnamese count identically; `İstanbul'da` is one word (apostrophe joins). |
-| Greek (monotonic/polytonic), Cyrillic | ICU / regex | ICU | ICU / regex | regex | regex | Identical | Precomposed and decomposed breathings both count as single clusters. |
-| Korean (Hangul with spaces) | ICU / regex | ICU | ICU / regex | regex | regex | Identical | Decomposed jamo (`ᄒ ᅡ ᆫ`) compose into single syllable clusters across all ports. |
-| Korean (Hangul without spaces) | ICU | ICU | ICU | regex | regex | Identical | ICU lacks a Hangul dictionary; unbroken text like `한국어문장` forms one word across all ports. |
-| Chinese (Simplified) | Dictionary | Dictionary | Dictionary | Run rule | Run rule | ICU | Pass `locale: "zh"`. |
-| Chinese (Traditional) | Dictionary | Dictionary (`zh-Hant`) | Dictionary | Run rule | Run rule | ICU | In Swift, pass `locale: "zh-Hant"` (or `nil`); plain `zh` under `CFStringTokenizer` splits common words like `我們`. |
-| Japanese | Dictionary | Dictionary | Dictionary | Run rule | Run rule | ICU | Particles separate (`私 は 本 を`); loanwords split at morphemes (`スマート フォン`); brackets (`「」`) act as separators. |
-| Thai | Dictionary | Dictionary | Dictionary | Run rule | Run rule | ICU | Vowel signs and tone marks stay attached to consonants; compound boundaries vary slightly across ICU versions. |
-| Lao | Dictionary | Dictionary | Dictionary | Run rule | Run rule | ICU | Consistent word breaks (`ພາສາ ລາວ ງ່າຍ`) across tested ICU engines. |
-| Khmer | Dictionary | Dictionary | Dictionary | Run rule | Run rule | ICU | Lexical words match; fixtures avoid coeng stacks where ICU 76+ and older engines differ on cluster counts. |
-| Burmese | Dictionary | Dictionary | Dictionary | Run rule | Run rule | ICU | Spacing vowel signs (e.g. `ာ` U+102C) form distinct clusters per UAX #29 in ICU engines. |
-| Devanagari, Bengali, Gujarati, Oriya, Telugu, Malayalam | ICU / regex | ICU | ICU / regex | regex | Identical | Conjuncts link into single clusters (Unicode 15.1 GB9c): `क्षत्रिय` = `क्ष \| त्रि \| य`. Kotlin and Python enforce GB9c explicitly. |
-| Tamil, Sinhala, and other Indic scripts | ICU / regex | ICU | ICU / regex | regex | regex | Identical | Virama/pulli stays attached to base consonants; characters do not link into multi-consonant clusters. |
-| Arabic, Persian, Urdu | ICU / regex | ICU | ICU / regex | regex | regex | Identical | Tashkeel and shadda attach to base letters; Persian ZWNJ (U+200C) preserves word unity in ICU ports. |
-| Hebrew | ICU / regex | ICU | ICU / regex | regex | regex | Identical | Niqqud and shin/sin dots attach to base consonants; geresh/gershayim within words are joined by ICU. |
-| Decimal digits of any script (`\p{Nd}`) | — | — | — | — | — | Identical | Unemphasised unless `emphasizeNumbers: true`; always consume a `saccade` index. |
-| Emoji, skin-tone modifiers, ZWJ sequences | — | — | — | — | — | Identical | Treated as separators; passed through untouched without splitting sequences. |
-| Full-width Latin (`ＨＥＬＬＯ`) | ICU / regex | ICU | ICU / regex | regex | regex | Identical | Treated as standard letters. |
+| Script | `@smooth-reading/core` | Swift | Android | Python | Dart | Rust | Status | Notes |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Latin (incl. Vietnamese, Turkish `İ`/`ı`, German `ß`, compounds) | ICU / regex | ICU | ICU / regex | regex | regex | regex | Identical | NFC and NFD Vietnamese count identically; `İstanbul'da` is one word (apostrophe joins). |
+| Greek (monotonic/polytonic), Cyrillic | ICU / regex | ICU | ICU / regex | regex | regex | regex | Identical | Precomposed and decomposed breathings both count as single clusters. |
+| Korean (Hangul with spaces) | ICU / regex | ICU | ICU / regex | regex | regex | regex | Identical | Decomposed jamo (`ᄒ ᅡ ᆫ`) compose into single syllable clusters across all ports. |
+| Korean (Hangul without spaces) | ICU | ICU | ICU | regex | regex | regex | Identical | ICU lacks a Hangul dictionary; unbroken text like `한국어문장` forms one word across all ports. |
+| Chinese (Simplified) | Dictionary | Dictionary | Dictionary | Run rule | Run rule | Run rule | ICU | Pass `locale: "zh"`. |
+| Chinese (Traditional) | Dictionary | Dictionary (`zh-Hant`) | Dictionary | Run rule | Run rule | Run rule | ICU | In Swift, pass `locale: "zh-Hant"` (or `nil`); plain `zh` under `CFStringTokenizer` splits common words like `我們`. |
+| Japanese | Dictionary | Dictionary | Dictionary | Run rule | Run rule | Run rule | ICU | Particles separate (`私 は 本 を`); loanwords split at morphemes (`スマート フォン`); brackets (`「」`) act as separators. |
+| Thai | Dictionary | Dictionary | Dictionary | Run rule | Run rule | Run rule | ICU | Vowel signs and tone marks stay attached to consonants; compound boundaries vary slightly across ICU versions. |
+| Lao | Dictionary | Dictionary | Dictionary | Run rule | Run rule | Run rule | ICU | Consistent word breaks (`ພາສາ ລາວ ງ່າຍ`) across tested ICU engines. |
+| Khmer | Dictionary | Dictionary | Dictionary | Run rule | Run rule | Run rule | ICU | Lexical words match; fixtures avoid coeng stacks where ICU 76+ and older engines differ on cluster counts. |
+| Burmese | Dictionary | Dictionary | Dictionary | Run rule | Run rule | Run rule | ICU | Spacing vowel signs (e.g. `ာ` U+102C) form distinct clusters per UAX #29 in ICU engines. |
+| Devanagari, Bengali, Gujarati, Oriya, Telugu, Malayalam | ICU / regex | ICU | ICU / regex | regex | regex | regex | Identical | Conjuncts link into single clusters (Unicode 15.1 GB9c): `क्षत्रिय` = `क्ष \| त्रि \| य`. Kotlin, Python, Dart and Rust enforce GB9c explicitly. |
+| Tamil, Sinhala, and other Indic scripts | ICU / regex | ICU | ICU / regex | regex | regex | regex | Identical | Virama/pulli stays attached to base consonants; characters do not link into multi-consonant clusters. |
+| Arabic, Persian, Urdu | ICU / regex | ICU | ICU / regex | regex | regex | regex | Identical | Tashkeel and shadda attach to base letters; Persian ZWNJ (U+200C) preserves word unity in ICU ports. |
+| Hebrew | ICU / regex | ICU | ICU / regex | regex | regex | regex | Identical | Niqqud and shin/sin dots attach to base consonants; geresh/gershayim within words are joined by ICU. |
+| Decimal digits of any script (`\p{Nd}`) | — | — | — | — | — | — | Identical | Unemphasised unless `emphasizeNumbers: true`; always consume a `saccade` index. |
+| Emoji, skin-tone modifiers, ZWJ sequences | — | — | — | — | — | — | Identical | Treated as separators; passed through untouched without splitting sequences. |
+| Full-width Latin (`ＨＥＬＬＯ`) | ICU / regex | ICU | ICU / regex | regex | regex | regex | Identical | Treated as standard letters. |
 
 ---
 
@@ -71,7 +72,7 @@ In Indic scripts, a consonant cluster such as Devanagari `क्ष` (`क` + vi
 
 Unicode 15.1 introduced rule **GB9c** to UAX #29 to prevent splitting consonant conjuncts linked by a virama. All Smooth Reading ports strictly adhere to rule GB9c:
 - Modern ICU engines (`Intl.Segmenter`, Apple ICU, Android ICU) support GB9c natively.
-- The Kotlin, Python and Dart implementations enforce GB9c programmatically for the six designated linker scripts (Devanagari, Bengali, Gujarati, Oriya, Telugu, Malayalam), ensuring consistent behavior regardless of host JDK or system library versions.
+- The Kotlin, Python, Dart and Rust implementations enforce GB9c programmatically for the six designated linker scripts (Devanagari, Bengali, Gujarati, Oriya, Telugu, Malayalam), ensuring consistent behavior regardless of host JDK or system library versions.
 
 ### Arabic, Persian, Urdu, and Hebrew
 Diacritical marks (Arabic tashkeel/harakat, Hebrew niqqud) attach to preceding base letters and never receive separate fixation splits. 

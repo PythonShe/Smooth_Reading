@@ -12,11 +12,12 @@ one first-party port per platform runtime. License: Apache-2.0.
 | `android/` | `io.github.pythonshe:smooth-reading` | Kotlin, Gradle, minSdk 24 | Same algorithm; Compose `AnnotatedString`, `Spanned`, `toHtml()` |
 | `python/` | `smooth-reading` (PyPI) | Python 3.10+, zero deps | Same algorithm, regex tokenizer, `smooth-reading` CLI |
 | `dart/` | `smooth_reading` (pub.dev) | Dart 3.0+, zero deps | Same algorithm, regex tokenizer, sealed `Token` for Flutter `TextSpan`, pluggable `Segmenter`, `toHtml`/`toMarkdown` |
+| `rust/` | `smooth-reading` (crates.io) | Rust 2024 edition, MSRV 1.85, zero deps | Same algorithm, std-only scanner over a generated Unicode category table, borrowed `Token<'a>`, `Segmenter` trait, `to_html`/`to_markdown`, `smooth-reading` CLI |
 | `fixtures/` | shared fixtures | JSON | `common/` must pass in every port; `segmenter/` only where an ICU word-breaker exists |
 | `examples/` | demos | Vite | Playground apps, not published |
 | `docs/` | docs | Markdown | `SPEC.md` is the contract; `docs/recipes/` holds framework snippets; `docs/internal/` is gitignored |
 
-Support policy: first-party ports are exactly the five above, one per
+Support policy: first-party ports are exactly the six above, one per
 platform runtime. Framework adapters (React, Vue, Svelte, Angular, Flutter
 widgets, …) are never published as packages; they are copy-paste recipes in
 `docs/recipes/`.
@@ -33,7 +34,7 @@ lacks, add it to the spec in the same commit.
   afterthought. Chinese, Japanese, Korean, Thai, Vietnamese, Hindi and other
   Indic scripts, Arabic, Hebrew, Persian and Urdu must work correctly in every
   ICU-backed port (core via `Intl.Segmenter`, Swift, Android) and degrade
-  predictably in the regex-only Python port. `fixtures/segmenter/` and
+  predictably in the regex-only Python, Dart and Rust ports. `fixtures/segmenter/` and
   `fixtures/common/scripts.json` are the proof; a change that breaks one of
   those fixtures is a release blocker.
 - Bidirectional text: emitted markup and attributed strings must never alter
@@ -58,7 +59,7 @@ lacks, add it to the spec in the same commit.
 ## Stack Policy
 
 - **Latest everything**: newest stable pnpm, TypeScript, Vite, Vitest, Swift,
-  Kotlin, Gradle, Python, Dart and all dependencies. When bumping, query the registries
+  Kotlin, Gradle, Python, Dart, Rust and all dependencies. When bumping, query the registries
   (`npm view <pkg> version`, PyPI) for actual latest stable — never guess from
   training data. Record any forced downgrade (e.g. a tool that does not yet
   support the newest TypeScript) as a comment next to the pin.
@@ -84,6 +85,16 @@ lacks, add it to the spec in the same commit.
   Flutter widgets are recipes (`docs/recipes/flutter.md`) built on the sealed
   `Token` type; never import `package:flutter` from `dart/lib/`. The SDK
   floor is Dart 3.0; CI tests the floor and the latest stable.
+- **Rust: std only, no `unsafe`.** `smooth-reading` has an empty
+  `[dependencies]` table (dev-dependencies are fine). Rust's standard library
+  has no Unicode general-category lookup, so the crate ships a generated
+  range table (`rust/src/unicode_data.rs`, produced by
+  `rust/tools/gen_unicode_data.py` from the UCD); regenerate it rather
+  than editing it. Tokens borrow from the input (`Token<'a>`); the
+  `Segmenter` trait is the ICU hook, like Dart's. Edition 2024 with
+  `rust-version = "1.85"` (the edition floor, so every toolchain with edition
+  2024 support can build it; Rust is forward compatible only); CI tests the
+  floor and stable. Develop and publish with the latest stable.
 - **No `useEffect` in React code or recipes.** Render from `tokenize()` as a
   pure function of props (SSR/RSC safe, no re-run hazards). Fetched HTML is
   transformed in the data layer (`toHtml` inside a TanStack Query `select`,
@@ -100,12 +111,13 @@ lacks, add it to the spec in the same commit.
 - These root rules cover only monorepo-level constraints.
 - For a task within one package, also follow that package's `README.md` API
   and keep its tests green: `pnpm --filter <name> build test typecheck`, or
-  `cd python && pytest && mypy --strict smooth_reading`.
+  `cd python && pytest && mypy --strict smooth_reading`, or
+  `cd rust && cargo clippy --all-targets -- -D warnings && cargo test`.
 - Any change to the algorithm touches `docs/SPEC.md`, `fixtures/` and all
-  four ports together; all fixture tests in all ports must pass in the same
+  six ports together; all fixture tests in all ports must pass in the same
   commit. Port test commands: `pnpm --filter @smooth-reading/core test`,
   `cd swift && swift test`, `cd android && ./gradlew test`,
-  `cd python && pytest`.
+  `cd python && pytest`, `cd dart && dart test`, `cd rust && cargo test`.
 - `AGENTS.md` is a verbatim copy of `CLAUDE.md` (for Codex and other agents).
   After editing `CLAUDE.md`, re-copy it over `AGENTS.md` in the same commit.
 
@@ -121,11 +133,12 @@ lacks, add it to the spec in the same commit.
 
 - `ci.yml` — manual trigger only (`workflow_dispatch`; run via the Actions tab or `gh workflow run ci.yml`): JS on Node 24 (pnpm frozen install, build, typecheck, test),
   Swift (`swift test` on macOS), Android (`./gradlew test`), Python (pytest +
-  mypy on 3.10 and latest), Dart (analyze + test on 3.0.0 and stable).
+  mypy on 3.10 and latest), Dart (analyze + test on 3.0.0 and stable),
+  Rust (build + test on the 1.85 floor; fmt, clippy, doc, publish dry-run on stable).
 - `release.yml` — manual trigger with a `tag` input
   (`gh workflow run release.yml -f tag=vX.Y.Z`): verifies every port carries
-  the tagged version, then publishes npm, PyPI, pub.dev and Maven Central and
-  creates the GitHub release SwiftPM resolves from. Run it with
+  the tagged version, then publishes npm, PyPI, pub.dev, crates.io and Maven
+  Central and creates the GitHub release SwiftPM resolves from. Run it with
   `--ref vX.Y.Z` so pub.dev's tag check passes. Versions are bumped together
   across all ports; keep every package at the same version and tag releases
   `vX.Y.Z` (Python spells prereleases per PEP 440, e.g. `0.1.0rc1`).
@@ -145,6 +158,7 @@ lacks, add it to the spec in the same commit.
 | `android` | Changes within `android/` |
 | `python` | Changes within `python/` |
 | `dart` | Changes within `dart/` |
+| `rust` | Changes within `rust/` |
 | `recipes` | Changes within `docs/recipes/` |
 | `fixtures` | Changes within `fixtures/` |
 | `spec` | Changes to `docs/SPEC.md` |
@@ -160,7 +174,8 @@ Cross-package changes may combine scopes (`spec,core,python`).
 - Generated artifacts are never committed: `dist/`, `coverage/`,
   `node_modules/`, `python/.venv/`, `__pycache__/`, `*.egg-info/`,
   `swift/.build/`, `android/build/`, `android/.gradle/`, `dart/.dart_tool/`,
-  `dart/pubspec.lock` (a library, so the lockfile is not committed).
+  `dart/pubspec.lock` (a library, so the lockfile is not committed),
+  `rust/target/`, `rust/Cargo.lock` (same reason).
 - `docs/internal/` is gitignored on purpose; do not force-add it.
 - No personal information (real names, emails) in README or other
   public-facing docs.
@@ -176,3 +191,5 @@ Cross-package changes may combine scopes (`spec,core,python`).
 - Dart comes from fvm (`~/fvm_cache/default/bin`); the package must still
   support Dart 3.0 (a 3.0.0 SDK zip can be unpacked into the scratchpad to
   check).
+- Rust comes from Homebrew (no rustup, latest stable only); the 1.85 floor is
+  verified in CI, not locally.

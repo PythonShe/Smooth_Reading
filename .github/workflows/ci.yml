@@ -63,6 +63,36 @@ jobs:
       - if: matrix.sdk == 'stable'
         run: dart pub publish --dry-run
 
+  rust:
+    name: Rust crate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rust
+    strategy:
+      matrix:
+        # The Cargo.toml rust-version floor (the edition 2024 floor) and the
+        # latest stable.
+        toolchain: ["1.85", stable]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          components: rustfmt, clippy
+      - run: cargo build --all-targets
+      - run: cargo test
+      - if: matrix.toolchain == 'stable'
+        run: cargo fmt --check
+      - if: matrix.toolchain == 'stable'
+        run: cargo clippy --all-targets -- -D warnings
+      - if: matrix.toolchain == 'stable'
+        run: cargo doc --no-deps
+        env:
+          RUSTDOCFLAGS: -D warnings
+      - if: matrix.toolchain == 'stable'
+        run: cargo publish --dry-run
+
   swift:
     name: Swift package
     runs-on: macos-latest
