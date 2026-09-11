@@ -25,14 +25,15 @@ still produces byte-identical output on the shared fixture suite.
   plug in an ICU word breaker (for example `icu_segmenter`) for dictionary
   based Chinese, Japanese and Thai breaks without touching the algorithm.
 - A `smooth-reading` command (`cargo install smooth-reading`) with the same
-  flags as the Python CLI.
+  flags as the Python CLI, which gains `--version` in this release.
 
 ### Release engineering
 
 - `ci.yml` builds and tests the crate on the 1.85 floor and on stable (fmt,
   clippy, doc, publish dry-run); `release.yml` verifies the crate version and
   publishes to crates.io with the `CARGO_REGISTRY_TOKEN` secret, skipping
-  versions that already exist.
+  versions that already exist. `rust/Cargo.lock` is committed and every
+  cargo invocation in CI runs `--locked`.
 
 ## 0.2.0 — 2026-09-10
 

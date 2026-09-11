@@ -175,7 +175,8 @@ Cross-package changes may combine scopes (`spec,core,python`).
   `node_modules/`, `python/.venv/`, `__pycache__/`, `*.egg-info/`,
   `swift/.build/`, `android/build/`, `android/.gradle/`, `dart/.dart_tool/`,
   `dart/pubspec.lock` (a library, so the lockfile is not committed),
-  `rust/target/`, `rust/Cargo.lock` (same reason).
+  `rust/target/`. `rust/Cargo.lock` *is* committed (current Cargo guidance,
+  and the crate ships a binary); CI and release use `--locked`.
 - `docs/internal/` is gitignored on purpose; do not force-add it.
 - No personal information (real names, emails) in README or other
   public-facing docs.

@@ -88,3 +88,12 @@ def test_out_of_range_saccade_is_clamped(
 ) -> None:
     # Spec section 4: saccade < 1 is clamped to 1, so every word is emphasised.
     assert run(["--saccade", "0"], "one two", capsys, monkeypatch) == "<b>on</b>e <b>tw</b>o"
+
+
+def test_version(capsys: pytest.CaptureFixture[str]) -> None:
+    from smooth_reading import __version__
+
+    with pytest.raises(SystemExit) as exit_info:
+        main(["--version"])
+    assert exit_info.value.code == 0
+    assert capsys.readouterr().out.strip() == f"smooth-reading {__version__}"

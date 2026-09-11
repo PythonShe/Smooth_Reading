@@ -6,6 +6,7 @@ import argparse
 import sys
 from collections.abc import Sequence
 
+from . import __version__
 from .html import to_html, to_markdown
 from .options import DEFAULTS, Options
 
@@ -19,6 +20,7 @@ def _parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument("file", nargs="?", help="input file; omit or use '-' for standard input")
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument(
         "--fixation",
         type=int,

@@ -101,7 +101,7 @@ package metadata.
 - pnpm only (`pnpm-lock.yaml` is the lockfile; `pnpm dlx` replaces `npx`).
 - Zero runtime dependencies in every port; platform APIs are fine.
 - Generated artifacts (`dist/`, `.build/`, `build/`, `.venv/`, `node_modules/`,
-  `target/`) are never committed.
+  `target/`) are never committed; `rust/Cargo.lock` is.
 - Versions are bumped together across all ports and releases are tagged
   `vX.Y.Z`. Push the tag, then run
   `gh workflow run release.yml --ref vX.Y.Z -f tag=vX.Y.Z`.

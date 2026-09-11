@@ -167,6 +167,9 @@ jobs:
     name: crates.io (smooth-reading)
     needs: verify
     runs-on: ubuntu-latest
+    # A scoped API token for now; crates.io trusted publishing (OIDC via
+    # rust-lang/crates-io-auth-action) can only be configured once the first
+    # version exists, so switch after 0.3.0 like pub.dev.
     env:
       CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
     defaults:
@@ -183,8 +186,10 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+      # Lints are gated in ci.yml; a new clippy lint on release day must not
+      # block crates.io while the other registries ship.
       - if: env.CARGO_REGISTRY_TOKEN != ''
-        run: cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test
+        run: cargo test --locked
       - if: env.CARGO_REGISTRY_TOKEN != ''
         name: Publish
         run: |
@@ -194,7 +199,7 @@ jobs:
                "https://crates.io/api/v1/crates/smooth-reading/$version" >/dev/null 2>&1; then
             echo "smooth-reading $version is already on crates.io, skipping"; exit 0
           fi
-          cargo publish
+          cargo publish --locked
 
   maven-central:
     name: Maven Central (io.github.pythonshe)
