@@ -155,13 +155,19 @@ jobs:
         uses: dart-lang/setup-dart@v1
         with:
           sdk: stable
-      # setup-dart exports the OIDC-exchanged PUB_TOKEN; keep it out of the
-      # read-only steps so a token problem can only surface at publish time.
+      # setup-dart registers the OIDC-exchanged PUB_TOKEN as a pub credential.
+      # Drop that credential for the read-only steps (with it registered, pub
+      # sends it on every pub.dev request, and a missing variable is an error)
+      # and register it again only for the publish itself.
       - if: steps.check.outputs.publish == 'true'
-        run: unset PUB_TOKEN && dart pub get && dart analyze --fatal-infos && dart test
+        run: |
+          dart pub token remove https://pub.dev
+          dart pub get && dart analyze --fatal-infos && dart test
       - if: steps.check.outputs.publish == 'true'
         name: Publish
-        run: dart pub publish --force
+        run: |
+          dart pub token add https://pub.dev --env-var PUB_TOKEN
+          dart pub publish --force
 
   crates-io:
     name: crates.io (smooth-reading)

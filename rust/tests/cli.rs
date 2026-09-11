@@ -20,12 +20,20 @@ fn run(args: &[&str], stdin: &str) -> Run {
         .stderr(Stdio::piped())
         .spawn()
         .expect("spawn smooth-reading");
-    child
+    // A usage error makes the binary exit before reading stdin; on Linux the
+    // write then fails with EPIPE, which is not a test failure.
+    if let Err(error) = child
         .stdin
         .take()
         .expect("piped stdin")
         .write_all(stdin.as_bytes())
-        .expect("write stdin");
+    {
+        assert_eq!(
+            error.kind(),
+            std::io::ErrorKind::BrokenPipe,
+            "write stdin: {error}"
+        );
+    }
     let output = child.wait_with_output().expect("wait for smooth-reading");
     Run {
         code: output.status.code().expect("exit code"),
