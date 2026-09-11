@@ -16,9 +16,6 @@ categories = ["text-processing", "accessibility", "internationalization", "comma
 # part of the published package, so those two test files are left out of it.
 exclude = ["tests/fixtures.rs", "tests/languages.rs", "tests/support/"]
 
-[lib]
-name = "smooth_reading"
-
 [[bin]]
 name = "smooth-reading"
 path = "src/bin/smooth-reading.rs"

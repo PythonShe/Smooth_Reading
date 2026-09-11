@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use smooth_reading::{
-    DEFAULT_SKIP_TAGS, HtmlOptions, Options, SpecSegmenter, VERSION, fixation_length,
+    DEFAULT_SKIP_TAGS, HtmlOptions, Options, Segmenter, SpecSegmenter, VERSION, fixation_length,
 };
 
 #[test]
@@ -58,7 +58,7 @@ fn setters_chain_and_getters_read_back() {
         .emphasize_numbers(true)
         .locale("zh-Hans")
         .fixation_length(|_, n, _| n)
-        .segmenter(Arc::new(SpecSegmenter));
+        .segmenter(SpecSegmenter);
     assert_eq!(options.get_fixation(), 2);
     assert_eq!(options.get_saccade(), 3);
     assert_eq!(options.get_min_word_length(), 4);
@@ -132,6 +132,36 @@ fn builtin_fixation_length_rules_in_order() {
         fixation_length("to", 2, &options.clone().fixation(1)),
         1,
         "clamped up to 1"
+    );
+}
+
+#[test]
+fn absurd_grapheme_counts_do_not_overflow() {
+    let options = Options::new();
+    assert_eq!(fixation_length("x", usize::MAX, &options), usize::MAX);
+    assert_eq!(
+        fixation_length("x", usize::MAX / 2, &options.clone().fixation(5)),
+        usize::MAX / 2
+    );
+    let large = usize::MAX / 100; // still multiplies without overflowing
+    assert_eq!(
+        fixation_length("x", large, &options),
+        (large * 50 + 50) / 100
+    );
+}
+
+#[test]
+fn a_shared_segmenter_is_reused_across_options() {
+    let shared: Arc<dyn Segmenter> = Arc::new(SpecSegmenter);
+    let a = Options::new().shared_segmenter(Arc::clone(&shared));
+    let b = Options::new()
+        .fixation(5)
+        .shared_segmenter(Arc::clone(&shared));
+    assert_eq!(Arc::strong_count(&shared), 3);
+    assert!(a.get_segmenter().is_some() && b.get_segmenter().is_some());
+    assert_eq!(
+        smooth_reading::to_markdown("iPhone手机", &a, "**"),
+        smooth_reading::to_markdown("iPhone手机", &Options::new(), "**")
     );
 }
 

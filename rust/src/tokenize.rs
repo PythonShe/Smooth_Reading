@@ -9,7 +9,7 @@ use crate::segment::Segmenter;
 /// Tokens borrow from the input. Concatenating [`Token::text`] over the
 /// slice returned by [`tokenize`] gives the input back unchanged, and for a
 /// word `fixation_text` + `rest_text` == `text`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Token<'a> {
     /// A word, with its fixation split.
     Word {
@@ -58,7 +58,8 @@ impl<'a> Token<'a> {
 
 /// Saccade bookkeeping shared across several [`tokenize_with_state`] calls,
 /// so [`to_html`](crate::to_html) keeps counting words across markup (SPEC §4).
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub struct TokenizeState {
     /// Index of the next word token; the first word of the input is `0`.
     pub word_index: usize,

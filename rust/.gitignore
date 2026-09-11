@@ -1,4 +1,2 @@
 # Build output.
 target/
-# This is a library: consumers resolve their own dependency versions.
-Cargo.lock

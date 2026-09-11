@@ -130,8 +130,38 @@ fn no_ignore_html_tags() {
 fn missing_file_reports_an_error() {
     let run = run(&["/definitely/not/here.txt"], "");
     assert_eq!(run.code, 1);
-    assert!(run.stderr.starts_with("smooth-reading: "), "{}", run.stderr);
+    assert!(
+        run.stderr
+            .starts_with("smooth-reading: /definitely/not/here.txt: "),
+        "{}",
+        run.stderr
+    );
+    assert!(run.stderr.contains("os error"), "{}", run.stderr);
     assert!(run.stdout.is_empty());
+}
+
+#[test]
+fn boolean_flags_reject_an_explicit_value() {
+    for arg in [
+        "--numbers=foo",
+        "--markdown=x",
+        "--no-ignore-html-tags=x",
+        "--help=1",
+        "--version=2",
+    ] {
+        let result = run(&[arg], "x");
+        assert_eq!(result.code, 2, "{arg}");
+        assert!(result.stdout.is_empty(), "{arg}");
+        let flag = arg.split('=').next().expect("flag");
+        let value = arg.split('=').nth(1).expect("value");
+        assert!(
+            result.stderr.contains(&format!(
+                "argument {flag}: ignored explicit argument '{value}'"
+            )),
+            "{arg}: {}",
+            result.stderr
+        );
+    }
 }
 
 #[test]

@@ -95,6 +95,15 @@ fn parse(arguments: impl IntoIterator<Item = String>) -> Result<Result<Args, Ear
                 .or_else(|| iter.next())
                 .ok_or_else(|| format!("argument {name}: expected one argument"))
         };
+        if let (
+            Some(explicit),
+            "-h" | "--help" | "--version" | "--numbers" | "--no-ignore-html-tags" | "--markdown",
+        ) = (&inline, name.as_str())
+        {
+            return Err(format!(
+                "argument {name}: ignored explicit argument '{explicit}'"
+            ));
+        }
         match name.as_str() {
             "-h" | "--help" => return Ok(Err(Early::Help)),
             "--version" => return Ok(Err(Early::Version)),
@@ -140,7 +149,9 @@ fn read_input(file: Option<&str>) -> io::Result<String> {
     let mut bytes = Vec::new();
     match file {
         None | Some("-") => io::stdin().lock().read_to_end(&mut bytes)?,
-        Some(path) => std::fs::File::open(path)?.read_to_end(&mut bytes)?,
+        Some(path) => std::fs::File::open(path)
+            .and_then(|mut file| file.read_to_end(&mut bytes))
+            .map_err(|error| io::Error::new(error.kind(), format!("{path}: {error}")))?,
     };
     String::from_utf8(bytes).map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))
 }

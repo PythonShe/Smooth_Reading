@@ -31,6 +31,10 @@ static SPEC_SEGMENTER: SpecSegmenter = SpecSegmenter;
 /// expression; the getters carry a `get_` prefix (as on
 /// [`std::process::Command`]) because the plain names are taken by the setters.
 ///
+/// `Options` implements [`Clone`] and [`Debug`](std::fmt::Debug) but not
+/// [`PartialEq`]: it can hold a closure and a segmenter, which have no useful
+/// notion of equality.
+///
 /// ```
 /// use smooth_reading::Options;
 ///
@@ -144,9 +148,19 @@ impl Options {
     ///
     /// The default is the spec's regular-expression scanner. Supply an
     /// ICU-backed [`Segmenter`] for dictionary-based Chinese, Japanese and Thai
-    /// word breaks; the fixation algorithm itself never changes.
+    /// word breaks; the fixation algorithm itself never changes. The segmenter
+    /// is stored behind an [`Arc`]; use [`Options::shared_segmenter`] to share
+    /// one you already hold.
     #[must_use]
-    pub fn segmenter(mut self, segmenter: Arc<dyn Segmenter>) -> Self {
+    pub fn segmenter(mut self, segmenter: impl Segmenter + 'static) -> Self {
+        self.segmenter = Some(Arc::new(segmenter));
+        self
+    }
+
+    /// Like [`Options::segmenter`], for a segmenter that is already shared
+    /// (for example one expensive to build and reused across many `Options`).
+    #[must_use]
+    pub fn shared_segmenter(mut self, segmenter: Arc<dyn Segmenter>) -> Self {
         self.segmenter = Some(segmenter);
         self
     }

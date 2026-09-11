@@ -6,7 +6,7 @@ Similar to commercial fixation-reading products, this crate is an independent, c
 
 - **Rust 1.85+**, edition 2024, `#![forbid(unsafe_code)]`.
 - **Zero runtime dependencies**: only `std`; the Unicode general-category table the tokenizer needs is generated into the crate.
-- **Borrowed tokens**: `tokenize()` returns `Token<'a>` slices of your input, ready for any text engine, with no allocation per word.
+- **Borrowed tokens**: `tokenize()` returns `Token<'a>` values whose fields are slices of your input, ready for any text engine; no text is copied.
 - **Unicode-aware**: diacritics, combining marks, Hangul jamo, Indic conjuncts, contractions, right-to-left scripts and emoji sequences are never split.
 - **Pluggable segmenter**: plug in an ICU word breaker (for example the `icu_segmenter` crate) for dictionary-based Chinese, Japanese and Thai word breaks without changing the algorithm.
 - **CLI included**: `smooth-reading` reads a file or stdin and writes HTML or Markdown.
@@ -106,7 +106,7 @@ smooth-reading --markdown notes.md
 smooth-reading --help
 ```
 
-Options: `[FILE|-]`, `--fixation N` (1–5), `--saccade N`, `--min-word-length N`, `--numbers`, `--tag TAG`, `--class CLASS`, `--no-ignore-html-tags`, `--markdown`, `--version`. The output is written without a trailing newline; the exit code is `2` for a usage error and `1` for an I/O error, exactly like the Python port's CLI.
+Options: `[FILE|-]`, `--fixation N` (1–5), `--saccade N`, `--min-word-length N`, `--numbers`, `--tag TAG`, `--class CLASS`, `--no-ignore-html-tags`, `--markdown`, `--help`, `--version`: the same flags as the Python port's CLI, with the same behaviour. The output is written without a trailing newline; the exit code is `2` for a usage error and `1` for an I/O error. Both `--opt value` and `--opt=value` are accepted, but argparse-style prefix abbreviations (`--fix` for `--fixation`) are not.
 
 ---
 
@@ -153,7 +153,7 @@ assert_eq!(
 | `emphasize_numbers` | `bool` | `false` | Whether words made only of decimal digits are emphasised. |
 | `locale` | `impl Into<String>` | none | BCP-47 tag, passed to the `segmenter`; the built-in one ignores it. |
 | `fixation_length` | `Fn(&str, usize, &Options) -> usize` | none | Custom `(word, graphemes, options)` rule replacing the fixation calculation; the result is clamped to `0..=graphemes`. |
-| `segmenter` | `Arc<dyn Segmenter>` | `SpecSegmenter` | Source of word boundaries and grapheme clusters (see below). |
+| `segmenter` | `impl Segmenter` (or `shared_segmenter(Arc<dyn Segmenter>)`) | `SpecSegmenter` | Source of word boundaries and grapheme clusters (see below). |
 
 `HtmlOptions` additionally has `tag`, `class_name`, `rest_tag`, `rest_class_name`, `ignore_html_tags` and `skip_tags`; `to_markdown` takes a `marker` (`"**"` for bold).
 
@@ -192,17 +192,19 @@ All space-separated scripts (Latin, Greek, Cyrillic, Korean, Vietnamese, Indic s
 
 ### Dictionary word breaks for Chinese, Japanese and Thai
 
-Implement `Segmenter` on top of a real break iterator and pass it in `Options`. The algorithm, saccade counting and HTML rendering are unchanged; only the boundary source differs. A sketch over the `icu_segmenter` crate (check its documentation for the exact API of the version you use):
+Implement `Segmenter` on top of a real break iterator and pass it in `Options`. The algorithm, saccade counting and HTML rendering are unchanged; only the boundary source differs. The example below uses the [`icu_segmenter`](https://crates.io/crates/icu_segmenter) crate (tested with `icu_segmenter = "2.3"`, which bundles its own dictionaries and LSTM models):
 
 ```rust
-use std::sync::Arc;
-
-use icu_segmenter::{GraphemeClusterSegmenter, WordSegmenter};
+use icu_segmenter::options::WordBreakInvariantOptions;
+use icu_segmenter::{
+    GraphemeClusterSegmenter, GraphemeClusterSegmenterBorrowed, WordSegmenter,
+    WordSegmenterBorrowed,
+};
 use smooth_reading::{Options, Segment, Segmenter, tokenize};
 
 struct IcuSegmenter {
-    words: WordSegmenter,
-    graphemes: GraphemeClusterSegmenter,
+    words: WordSegmenterBorrowed<'static>,
+    graphemes: GraphemeClusterSegmenterBorrowed<'static>,
 }
 
 impl Segmenter for IcuSegmenter {
@@ -232,15 +234,15 @@ impl Segmenter for IcuSegmenter {
     }
 }
 
-let segmenter = Arc::new(IcuSegmenter {
-    words: WordSegmenter::new_auto(Default::default()),
+let segmenter = IcuSegmenter {
+    words: WordSegmenter::new_auto(WordBreakInvariantOptions::default()),
     graphemes: GraphemeClusterSegmenter::new(),
-});
+};
 let options = Options::new().locale("zh").segmenter(segmenter);
 let tokens = tokenize("iPhone手机很好用", &options); // iPhone, 手机, 很好, 用
 ```
 
-The contract: segments and clusters must be consecutive slices of the input that concatenate back to it. Consecutive separators may come back as one segment or several; the tokenizer merges them.
+The contract: segments and clusters must be consecutive slices of the input that concatenate back to it. Consecutive separators may come back as one segment or several; the tokenizer merges them. `Options::segmenter` takes ownership and stores the segmenter in an `Arc`; to reuse one instance across many `Options` values, pass an `Arc<dyn Segmenter>` to `Options::shared_segmenter` instead.
 
 For the detailed cross-platform comparison see [`docs/LANGUAGES.md`](https://github.com/PythonShe/Smooth_Reading/blob/main/docs/LANGUAGES.md).
 

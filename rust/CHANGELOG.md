@@ -10,6 +10,7 @@ https://github.com/PythonShe/Smooth_Reading/blob/main/CHANGELOG.md
   `to_html`, `to_markdown`, `escape_html`, `fixation_length`, `Options`,
   `HtmlOptions`, a pluggable `Segmenter` trait with the spec's `SpecSegmenter`
   as the default, a generated Unicode general-category table
-  (`unicode_data`) and the `smooth-reading` CLI. Zero runtime dependencies,
+  (`unicode_data`) and the `smooth-reading` CLI (the same flags as the Python
+  CLI, including `--version`). Zero runtime dependencies,
   `#![forbid(unsafe_code)]`. Passes the shared `fixtures/common` suite
   byte-for-byte with the other five ports.

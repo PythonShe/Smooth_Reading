@@ -158,13 +158,13 @@ fn markup_adds_only_emphasis_tags_and_never_alters_bidi() {
 fn single_word(text: &str, options: &Options) -> (String, String) {
     let tokens = tokenize(text, options);
     assert_eq!(tokens.len(), 1, "{text:?} is one word");
-    match tokens[0] {
-        Token::Word {
+    match tokens.first() {
+        Some(Token::Word {
             fixation_text,
             rest_text,
             ..
-        } => (fixation_text.to_owned(), rest_text.to_owned()),
-        Token::Separator { .. } => panic!("{text:?} is a separator"),
+        }) => ((*fixation_text).to_owned(), (*rest_text).to_owned()),
+        _ => panic!("{text:?} is a separator"),
     }
 }
 

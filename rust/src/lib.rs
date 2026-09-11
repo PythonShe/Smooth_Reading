@@ -2,9 +2,8 @@
 //! so the eye lands on an artificial fixation point and the brain completes
 //! the rest of the word.
 //!
-//! Similar to commercial fixation-reading products, this crate is an
-//! independent, clean-room, zero-dependency implementation of the algorithm
-//! defined in the Smooth Reading
+//! This crate is an independent, clean-room, zero-dependency implementation
+//! of the algorithm defined in the Smooth Reading
 //! [specification](https://github.com/PythonShe/Smooth_Reading/blob/main/docs/SPEC.md),
 //! producing byte-identical output with the TypeScript, Swift, Kotlin, Python
 //! and Dart ports across all shared fixtures.
@@ -50,7 +49,6 @@
 //! dictionary-based [`Segmenter`] for finer breaks.
 
 #![forbid(unsafe_code)]
-#![warn(missing_docs)]
 
 mod fixation;
 mod html;

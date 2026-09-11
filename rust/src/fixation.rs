@@ -50,6 +50,10 @@ pub fn fixation_length(word: &str, graphemes: usize, options: &Options) -> usize
     if graphemes == 1 {
         return usize::from(options.get_fixation() >= 3);
     }
-    let raw = (graphemes * options.percent() + 50) / 100;
+    // `n * percent` cannot overflow for any real word; should a caller pass an
+    // absurd count, the ratio of an unbounded word is the word itself.
+    let raw = graphemes
+        .checked_mul(options.percent())
+        .map_or(graphemes, |scaled| (scaled + 50) / 100);
     raw.clamp(1, graphemes)
 }

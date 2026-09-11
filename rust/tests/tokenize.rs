@@ -345,9 +345,7 @@ impl Segmenter for SpaceSegmenter {
 
 #[test]
 fn a_custom_segmenter_supplies_the_word_boundaries() {
-    let options = Options::new()
-        .segmenter(Arc::new(SpaceSegmenter))
-        .locale("en");
+    let options = Options::new().segmenter(SpaceSegmenter).locale("en");
     let tokens = tokenize("well-known  3.14", &options);
     assert_eq!(
         tokens,
@@ -374,7 +372,7 @@ fn a_custom_segmenter_supplies_the_word_boundaries() {
 
 #[test]
 fn the_default_segmenter_is_the_spec_scanner() {
-    let with_spec = Options::new().segmenter(Arc::new(SpecSegmenter));
+    let with_spec = Options::new().shared_segmenter(Arc::new(SpecSegmenter));
     let text = "iPhone手机 don't 3.14";
     assert_eq!(tokenize(text, &with_spec), tokenize(text, &Options::new()));
 }
